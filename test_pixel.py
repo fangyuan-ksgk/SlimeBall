@@ -9,8 +9,7 @@ Performance, 100,000 frames in 144.839 seconds, or 690 fps.
 import gym
 import slimevolleygym
 from time import sleep
-# from pyglet.window import key
-import pygame
+from pyglet.window import key
 
 from gym.envs.classic_control import rendering as rendering # to show actual obs2
 
@@ -22,16 +21,16 @@ if __name__=="__main__":
   # taken from https://github.com/openai/gym/blob/master/gym/envs/box2d/car_racing.py
   def key_press(k, mod):
     global manualMode, manualAction
-    if k == pygame.K_LEFT:  manualAction[0] = 1
-    if k == pygame.K_RIGHT: manualAction[1] = 1
-    if k == pygame.K_UP:    manualAction[2] = 1
-    if (k == pygame.K_LEFT or k == pygame.K_RIGHT or k == pygame.K_UP): manualMode = True
+    if k == key.LEFT:  manualAction[0] = 1
+    if k == key.RIGHT: manualAction[1] = 1
+    if k == key.UP:    manualAction[2] = 1
+    if (k == key.LEFT or k == key.RIGHT or k == key.UP): manualMode = True
 
   def key_release(k, mod):
     global manualMode, manualAction
-    if k == pygame.K_LEFT:  manualAction[0] = 0
-    if k == pygame.K_RIGHT: manualAction[1] = 0
-    if k == pygame.K_UP:    manualAction[2] = 0
+    if k == key.LEFT:  manualAction[0] = 0
+    if k == key.RIGHT: manualAction[1] = 0
+    if k == key.UP:    manualAction[2] = 0
 
   viewer = rendering.SimpleImageViewer(maxwidth=2160)
 
