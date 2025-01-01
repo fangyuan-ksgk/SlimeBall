@@ -25,11 +25,13 @@ warnings.filterwarnings("ignore", category=UserWarning, module='gym')
 import gym
 import os
 import numpy as np
+import pickle
 import argparse
 import slimevolleygym
 from slimevolleygym.mlp import makeSlimePolicy, makeSlimePolicyLite # simple pretrained models
 from slimevolleygym import BaselinePolicy
 from time import sleep
+import neat
 
 #import cv2
 
@@ -52,6 +54,19 @@ class RandomPolicy:
 
 def makeBaselinePolicy(_):
   return BaselinePolicy()
+
+class NEATPolicy: 
+  def __init__(self, genome_path):
+    genome = pickle.load(open(genome_path, 'rb'))
+    config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
+                    neat.DefaultSpeciesSet, neat.DefaultStagnation,
+                    'zoo/neat_sp/config-neat')
+    self.net = neat.nn.FeedForwardNetwork.create(genome, config)
+
+  def predict(self, obs):
+    output = self.net.activate(obs)
+    return [1 if o > 0 else 0 for o in output]
+
 
 def rollout(env, policy0, policy1, render_mode=False):
   """ play one agent vs the other in modified gym-style loop. """
@@ -99,7 +114,7 @@ def evaluate_multiagent(env, policy0, policy1, render_mode=False, n_trials=1000,
 
 if __name__=="__main__":
 
-  APPROVED_MODELS = ["baseline", "ppo", "ga", "cma", "random"]
+  APPROVED_MODELS = ["baseline", "ppo", "ga", "cma", "random", "neat"]
 
   def checkchoice(choice):
     choice = choice.lower()
@@ -113,6 +128,7 @@ if __name__=="__main__":
     "cma": "zoo/cmaes/slimevolley.cma.64.96.best.json",
     "ga": "zoo/ga_sp/ga.json",
     "random": None,
+    "neat": "zoo/neat_sp/neat_00000000.pkl",
   }
 
   MODEL = {

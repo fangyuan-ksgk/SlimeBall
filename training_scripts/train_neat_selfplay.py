@@ -9,7 +9,12 @@ import gym
 import neat
 import slimevolleygym
 from slimevolleygym import multiagent_rollout as rollout
+from slimevolleygym.mlp import NEATPolicy
 from tqdm import tqdm
+import pickle
+import shutil
+import matplotlib.pyplot as plt
+from collections import defaultdict
 
 # Settings
 random_seed = 612
@@ -20,6 +25,11 @@ total_generations = 500
 logdir = "neat_selfplay"
 if not os.path.exists(logdir):
     os.makedirs(logdir)
+    
+# NEAT zoo path
+zoo_path = "../zoo/neat_sp"
+if not os.path.exists(zoo_path):
+    os.makedirs(zoo_path)
 
 class NEATPolicy:
     """Policy wrapper for NEAT neural networks"""
@@ -80,15 +90,66 @@ def eval_genomes(genomes, config):
     return history
 
 # Load NEAT configuration
+config_name = "config-neat"
 config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
                     neat.DefaultSpeciesSet, neat.DefaultStagnation,
-                    'config-neat')
+                    config_name)
 
 # Create population and add reporters
 pop = neat.Population(config)
 pop.add_reporter(neat.StdOutReporter(True))
 stats = neat.StatisticsReporter()
 pop.add_reporter(stats)
+
+class TrainingStats:
+    def __init__(self):
+        self.stats = defaultdict(list)
+        self.generations = []
+        self.current_fitnesses = []
+    
+    def record_generation(self, gen, pop, generation_stats):
+        # Record generation number
+        self.generations.append(gen)
+        
+        # Record fitness stats
+        fitnesses = [g.fitness for g in pop.population.values()]
+        self.current_fitnesses = fitnesses  # Store current fitness distribution
+        self.stats['max_fitness'].append(max(fitnesses))
+        self.stats['avg_fitness'].append(np.mean(fitnesses))
+        
+        # Record game duration stats
+        self.stats['avg_duration'].append(np.mean(generation_stats))
+        self.stats['std_duration'].append(np.std(generation_stats))
+        
+    def plot_stats(self, save_path):
+        plt.figure(figsize=(15, 10))
+        
+        # Plot 1: Fitness over time
+        plt.subplot(2, 1, 1)
+        plt.plot(self.generations, self.stats['max_fitness'], label='Max Fitness')
+        plt.plot(self.generations, self.stats['avg_fitness'], label='Avg Fitness')
+        plt.title('Fitness over Generations')
+        plt.xlabel('Generation')
+        plt.ylabel('Fitness')
+        plt.legend()
+        plt.grid(True)
+        
+        # Plot 2: Current Population Fitness Histogram
+        plt.subplot(2, 1, 2)
+        plt.hist(self.current_fitnesses, bins=30, edgecolor='black')
+        plt.title('Current Population Fitness Distribution')
+        plt.xlabel('Fitness')
+        plt.ylabel('Number of Individuals')
+        plt.grid(True)
+        
+        plt.tight_layout()
+        plt.savefig(save_path)
+        plt.close()
+
+# After creating your NEAT population and before the main training loop:
+training_stats = TrainingStats()
+
+best_path = "zoo/neat_sp/neat_{gen}_best.pkl"
 
 # Modified main loop to track and save statistics
 generation_stats = []
@@ -98,11 +159,13 @@ for gen in range(total_generations):
     generation_stats.extend(current_history)
     
     if gen % save_freq == 0:
+        # Record and plot statistics
+        training_stats.record_generation(gen, pop, generation_stats)
+        plot_path = os.path.join(logdir, f"training_progress.png")
+        training_stats.plot_stats(plot_path)
+        
         # Save best performing genome
         best_genome = max(pop.population.values(), key=lambda g: g.fitness)
-        model_filename = os.path.join(logdir, f"neat_{str(gen).zfill(8)}.json")
-        with open(model_filename, 'wt') as out:
-            json.dump([best_genome.fitness, best_genome.size()], out)
         
         # Print statistics similar to GA version
         print(f"generation: {gen}",
@@ -110,3 +173,13 @@ for gen in range(total_generations):
               f"mean_duration: {np.mean(generation_stats)}",
               f"stdev: {np.std(generation_stats)}")
         generation_stats = []
+        
+# Save best performing genome
+best_genome = max(pop.population.values(), key=lambda g: g.fitness)
+model_filename = os.path.join(zoo_path, best_path.format(gen=gen))
+with open(model_filename, 'wb') as out:
+    pickle.dump(best_genome, out)
+    
+# Copy config file to zoo 
+config_filename = os.path.join(zoo_path, config_name)
+shutil.copy(config_name, config_filename)
