@@ -9,7 +9,6 @@ import gym
 import neat
 import slimevolleygym
 from slimevolleygym import multiagent_rollout as rollout
-from slimevolleygym.mlp import NEATPolicy
 from tqdm import tqdm
 import pickle
 import shutil
@@ -19,7 +18,7 @@ from collections import defaultdict
 # Settings
 random_seed = 612
 save_freq = 1
-total_generations = 500
+total_generations = 10
 
 # Log results
 logdir = "neat_selfplay"
@@ -39,10 +38,10 @@ class NEATPolicy:
     
     def predict(self, obs):
         """Returns action in the format expected by the environment"""
-        # Convert network output to a 3-element action array
-        # where each element is either 0 or 1
         output = self.net.activate(obs)
-        return [1 if o > 0 else 0 for o in output]
+        act_idx = max(range(len(output)), key=lambda i: output[i])
+        action = [1 if i == act_idx else 0 for i in range(3)]
+        return action
 
 def evaluate_match(env, policy1, policy2):
     """Evaluate a single match between two policies using the same rollout as GA version"""
@@ -81,11 +80,11 @@ def eval_genomes(genomes, config):
         if score > 0:  # policy2 won
             genome2.fitness += 1
             policy2.winning_streak += 1
-            genome1.fitness -= 1
+            genome1.fitness -= 0.5
         elif score < 0:  # policy1 won
             genome1.fitness += 1
             policy1.winning_streak += 1
-            genome2.fitness -= 1
+            genome2.fitness -= 0.5
             
     return history
 
@@ -149,7 +148,7 @@ class TrainingStats:
 # After creating your NEAT population and before the main training loop:
 training_stats = TrainingStats()
 
-best_path = "zoo/neat_sp/neat_{gen}_best.pkl"
+best_path = "neat_{gen}_best.pkl"
 
 # Modified main loop to track and save statistics
 generation_stats = []

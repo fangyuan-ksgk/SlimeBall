@@ -64,8 +64,11 @@ class NEATPolicy:
     self.net = neat.nn.FeedForwardNetwork.create(genome, config)
 
   def predict(self, obs):
+    """Returns action in the format expected by the environment"""
     output = self.net.activate(obs)
-    return [1 if o > 0 else 0 for o in output]
+    act_idx = max(range(len(output)), key=lambda i: output[i])
+    action = [1 if i == act_idx else 0 for i in range(3)]
+    return action
 
 
 def rollout(env, policy0, policy1, render_mode=False):
@@ -122,13 +125,17 @@ if __name__=="__main__":
       return False
     return True
 
+  import glob 
+  neat_files = glob.glob("zoo/neat_sp/*.pkl")
+  neat_file = neat_files[0]
+  
   PATH = {
     "baseline": None,
     "ppo": "zoo/ppo/best_model.zip",
     "cma": "zoo/cmaes/slimevolley.cma.64.96.best.json",
     "ga": "zoo/ga_sp/ga.json",
     "random": None,
-    "neat": "zoo/neat_sp/neat_00000000.pkl",
+    "neat": neat_file,
   }
 
   MODEL = {
@@ -137,6 +144,7 @@ if __name__=="__main__":
     "cma": makeSlimePolicy,
     "ga": makeSlimePolicyLite,
     "random": RandomPolicy,
+    "neat": NEATPolicy,
   }
 
   parser = argparse.ArgumentParser(description='Evaluate pre-trained agents against each other.')
