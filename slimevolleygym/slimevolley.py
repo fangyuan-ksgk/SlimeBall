@@ -26,7 +26,7 @@ np.set_printoptions(threshold=20, precision=3, suppress=True, linewidth=200)
 
 # game settings:
 
-RENDER_MODE = True
+RENDER_MODE = False  # disabled for faster training
 
 REF_W = 24*2
 REF_H = REF_W

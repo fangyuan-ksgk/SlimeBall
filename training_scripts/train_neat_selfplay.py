@@ -18,7 +18,7 @@ from collections import defaultdict
 # Settings
 random_seed = 612
 save_freq = 1
-total_generations = 10
+total_generations = 50
 
 # Log results
 logdir = "neat_selfplay"
@@ -61,7 +61,7 @@ def eval_genomes(genomes, config):
         genome.fitness = 0  # Reset fitness
     
     # Run random tournaments instead of round-robin
-    num_tournaments = len(genomes) * 2  # Each genome plays ~4 matches on average
+    num_tournaments = len(genomes) * 3  # Each genome plays ~6 matches on average
     
     # Add progress bar
     for _ in tqdm(range(num_tournaments), desc=f"Generation Tournaments", leave=False):
@@ -76,15 +76,15 @@ def eval_genomes(genomes, config):
         score, length = evaluate_match(env, policy1, policy2)
         history.append(length)
         
-        # Update fitness
+        # Update fitness with stronger rewards/penalties
         if score > 0:  # policy2 won
-            genome2.fitness += 1
+            genome2.fitness += 2.0
             policy2.winning_streak += 1
-            genome1.fitness -= 0.5
+            genome1.fitness -= 1.0
         elif score < 0:  # policy1 won
-            genome1.fitness += 1
+            genome1.fitness += 2.0
             policy1.winning_streak += 1
-            genome2.fitness -= 0.5
+            genome2.fitness -= 1.0
             
     return history
 
