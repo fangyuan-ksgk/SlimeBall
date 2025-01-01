@@ -42,6 +42,8 @@ if __name__=="__main__":
 
   # taken from https://github.com/openai/gym/blob/master/gym/envs/box2d/car_racing.py
   def key_press(k, mod):
+    # manualAction -> Yellow Agent
+    # otherManualAction -> Blue Agent
     global manualMode, manualAction, otherManualMode, otherManualAction
     if k == key.LEFT:  manualAction[0] = 1
     if k == key.RIGHT: manualAction[1] = 1

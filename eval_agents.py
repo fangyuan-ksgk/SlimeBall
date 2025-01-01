@@ -64,6 +64,8 @@ def rollout(env, policy0, policy1, render_mode=False):
 
   while not done:
 
+    # agent absolute x,y,vx,xy | ball position x,y,vx,vy | opponent absolute x,y,vx,vy
+    # Therefore, compared to agent1 observation, agent0 observation flipps last 4 with first 4 and negates ball's x & vx 
     action0 = policy0.predict(obs0)
     action1 = policy1.predict(obs1)
 

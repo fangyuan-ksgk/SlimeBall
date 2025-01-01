@@ -344,6 +344,11 @@ class RelativeState:
     self.ovx = 0
     self.ovy = 0
   def getObservation(self):
+    """ 
+    Agent     x,   y, vx,  vy
+    Ball     bx, by, bvx, bvy
+    Opponent ox, oy, ovx, ovy
+    """
     result = [self.x, self.y, self.vx, self.vy,
               self.bx, self.by, self.bvx, self.bvy,
               self.ox, self.oy, self.ovx, self.ovy]
@@ -416,7 +421,7 @@ class Agent:
       self.x = self.dir*(REF_W/2-self.r)
   def updateState(self, ball, opponent):
     """ normalized to side, appears different for each agent's perspective"""
-    # agent's self
+    # agent, scaled by self.dir (essentially absolute position)
     self.state.x = self.x*self.dir
     self.state.y = self.y
     self.state.vx = self.vx*self.dir
@@ -426,7 +431,7 @@ class Agent:
     self.state.by = ball.y
     self.state.bvx = ball.vx*self.dir
     self.state.bvy = ball.vy
-    # opponent
+    # opponent, scaled by -self.dir (essentially absolute position)
     self.state.ox = opponent.x*(-self.dir)
     self.state.oy = opponent.y
     self.state.ovx = opponent.vx*(-self.dir)

@@ -64,10 +64,10 @@ class Model:
     if self.layer_2 > 0:
       self.shapes = [ (self.input_size + self.time_input, self.layer_1),
                       (self.layer_1, self.layer_2),
-                      (self.layer_2, self.output_size)]
+                      (self.layer_2, self.output_size)]  # input, 2 hidden, output layers
     elif self.layer_2 == 0:
       self.shapes = [ (self.input_size + self.time_input, self.layer_1),
-                      (self.layer_1, self.output_size)]
+                      (self.layer_1, self.output_size)]  # input, 1 hidden, output layers
     else:
       assert False, "invalid layer_2"
 
@@ -133,6 +133,9 @@ class Model:
     return h
 
   def set_model_params(self, model_params):
+    """ 
+    FY: "Unflatten" model_params into weight and bias via reshape
+    """
     pointer = 0
     for i in range(len(self.shapes)):
       w_shape = self.shapes[i]
