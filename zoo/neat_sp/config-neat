@@ -3,7 +3,7 @@ fitness_criterion     = max
 # Questionale fitness threshold --> check the maximal fitness of population ...
 # 
 fitness_threshold     = 40.0
-pop_size             = 150
+pop_size             = 256
 reset_on_extinction  = False
 
 [DefaultGenome]
@@ -30,7 +30,7 @@ num_hidden              = 18
 num_inputs             = 12
 num_outputs            = 3
 feed_forward           = True
-initial_connection      = full
+initial_connection      = full_direct
 
 
 # connection add/remove rates
@@ -66,7 +66,7 @@ weight_init_mean        = 0.0
 weight_init_stdev       = 1.0
 weight_max_value        = 30
 weight_min_value        = -30
-weight_mutate_power     = 0.1
+weight_mutate_power     = 0.2
 weight_mutate_rate      = 1.0
 weight_replace_rate     = 0.0
 weight_init_type        = gaussian
