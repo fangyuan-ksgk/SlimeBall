@@ -246,6 +246,7 @@ class Ind():
       innov    - (np_array) - updated innovation record
 
     """
+    # print(":: mutAddNode")
     if innov is None:
       newNodeId = int(max(nodeG[0,:]+1))
       newConnId = connG[0,-1]+1    
@@ -272,6 +273,7 @@ class Ind():
         
         if np.any(matchingSrc & matchingDst):
             # This exact split already exists in innovation record
+            # print(":: This exact split already exists in innovation record")
             return connG, nodeG, innov
           
     # Create new node
@@ -308,6 +310,7 @@ class Ind():
     # Add new structures to genome
     nodeG = np.hstack((nodeG,newNode))
     connG = np.hstack((connG,newConns))
+    # print(":: Successfully added node")
     
     return connG, nodeG, innov
 
@@ -351,7 +354,7 @@ class Ind():
     """
     # 1. never check existence within Innov 
     # 2. questionable use of setdiff1d ... 
-    
+    # print(":: mutAddConn")
     if innov is None:
       newConnId = connG[0,-1]+1
     else:
@@ -359,22 +362,23 @@ class Ind():
 
     nIns = len(nodeG[0,nodeG[1,:] == 1]) + len(nodeG[0,nodeG[1,:] == 4])
     nOuts = len(nodeG[0,nodeG[1,:] == 2])
-    order, wMat = getNodeOrder(nodeG, connG)   # Topological Sort of Network
-    if order is False: 
-      return connG, innov
+    order, wMat = getNodeOrder(nodeG, connG)
     
+    if order is False:
+        # print(":: Failed to get node order")
+        return connG, innov
+        
     hMat = wMat[nIns:-nOuts,nIns:-nOuts]
-    hLay = getLayer(hMat)+1 # hidden node layer number
-
-    # To avoid recurrent connections nodes are sorted into layers, and connections are only allowed from lower to higher layers
-    if len(hLay) > 0:
-      lastLayer = max(hLay)+1 # output node layer number
-    else:
-      lastLayer = 1 # output node layer number 
-      
-    L = np.r_[np.zeros(nIns), hLay, np.full((nOuts),lastLayer) ] # Assign layer number to each node
+    hLay = getLayer(hMat)+1
     
-    nodeKey = np.c_[nodeG[0,order], L] # node key: node id and layer number (ordered by layer number)
+    if len(hLay) > 0:
+        lastLayer = max(hLay)+1
+    else:
+        lastLayer = 1
+        
+    L = np.r_[np.zeros(nIns), hLay, np.full((nOuts),lastLayer)]
+    
+    nodeKey = np.c_[nodeG[0,order], L]
 
     sources = np.random.permutation(len(nodeKey)) # node index permutation
     for src in sources:
@@ -390,6 +394,7 @@ class Ind():
       # Add a random valid connection
       np.random.shuffle(dest)
       if len(dest)>0:  # (there is a valid connection)
+        # print(":: Successfully added connection")
         connNew = np.empty((5,1))
         connNew[0] = newConnId
         connNew[1] = nodeKey[src,0]
@@ -403,5 +408,7 @@ class Ind():
           newInnov = np.hstack((connNew[0:3].flatten(), -1, gen)) # (5,)
           innov = np.hstack((innov,newInnov[:,None])) # (5, ...)
         break;
+      # else:
+        # print(":: No valid connection found")
 
     return connG, innov

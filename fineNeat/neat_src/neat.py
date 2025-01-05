@@ -82,7 +82,7 @@ class Neat():
     node[1,1:p['ann_nInput']+1] = 1 # Input Nodes
     # node[1,p['ann_nInput']+1:p['ann_nInput']+sum(p['ann_layers'])+1] = 2 # Hidden Nodes
     node[1,(p['ann_nInput']+1):\
-           (p['ann_nInput']+p['ann_nOutput']+1)]  = 4 # Output Nodes
+           (p['ann_nInput']+p['ann_nOutput']+1)]  = 2 # Output Nodes
     
     # Node Activations
     node[2,:] = p['ann_initAct']
