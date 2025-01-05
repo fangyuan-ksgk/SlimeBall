@@ -28,7 +28,7 @@ import numpy as np
 import pickle
 import argparse
 import slimevolleygym
-from slimevolleygym.mlp import makeSlimePolicy, makeSlimePolicyLite # simple pretrained models
+from slimevolleygym.mlp import makeSlimePolicy, makeSlimePolicyLite, NEATPolicy # simple pretrained models
 from slimevolleygym import BaselinePolicy
 from time import sleep
 import neat
@@ -54,21 +54,6 @@ class RandomPolicy:
 
 def makeBaselinePolicy(_):
   return BaselinePolicy()
-
-class NEATPolicy: 
-  def __init__(self, genome_path):
-    genome = pickle.load(open(genome_path, 'rb'))
-    config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
-                    neat.DefaultSpeciesSet, neat.DefaultStagnation,
-                    'zoo/neat_sp/config-neat')
-    self.net = neat.nn.FeedForwardNetwork.create(genome, config)
-
-  def predict(self, obs):
-    """Returns action in the format expected by the environment"""
-    output = self.net.activate(obs)
-    act_idx = max(range(len(output)), key=lambda i: output[i])
-    action = [1 if i == act_idx else 0 for i in range(3)]
-    return action
 
 
 def rollout(env, policy0, policy1, render_mode=False):
@@ -135,7 +120,8 @@ if __name__=="__main__":
     "cma": "zoo/cmaes/slimevolley.cma.64.96.best.json",
     "ga": "zoo/ga_sp/ga.json",
     "random": None,
-    "neat": neat_file,
+    "neat": "zoo/neat_sp/train_neat_selfplay_359.pkl",
+    # "neat": "zoo/neat/train_neat_26.pkl"
   }
 
   MODEL = {

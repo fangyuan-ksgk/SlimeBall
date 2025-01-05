@@ -2,8 +2,8 @@
 fitness_criterion     = max
 # Questionale fitness threshold --> check the maximal fitness of population ...
 # 
-fitness_threshold     = 40.0
-pop_size             = 150
+fitness_threshold     = 5.0
+pop_size             = 300
 reset_on_extinction  = False
 
 [DefaultGenome]
@@ -80,7 +80,7 @@ compatibility_disjoint_coefficient = 1.0
 compatibility_weight_coefficient   = 0.6
 
 [DefaultSpeciesSet]
-compatibility_threshold = 3.0
+compatibility_threshold = 2.0
 
 [DefaultStagnation]
 species_fitness_func = max

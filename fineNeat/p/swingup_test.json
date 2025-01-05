@@ -1,0 +1,9 @@
+{
+    "task":"swingup",
+    "alg_nReps": 4,
+    "maxGen": 1024,
+    "popSize": 256,
+    "prob_addConn": 0.15,
+    "prob_addNode": 0.12,
+    "alg_act": 5
+}

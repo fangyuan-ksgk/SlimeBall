@@ -7,6 +7,9 @@ code from https://github.com/hardmaru/estool
 import numpy as np
 import json
 from collections import namedtuple
+import neat 
+import pickle 
+from typing import Union
 
 Game = namedtuple('Game', ['env_name', 'time_factor', 'input_size', 'output_size', 'layers', 'activation', 'noise_bias', 'output_noise', 'rnn_mode'])
 
@@ -164,3 +167,30 @@ class Model:
 
   def get_random_model_params(self, stdev=0.1):
     return np.random.randn(self.param_count)*stdev
+
+
+
+
+class NEATPolicy: 
+  def __init__(self, 
+               genome: Union[str, neat.DefaultGenome],
+               config: Union[str, neat.Config] = 'zoo/neat_sp/config-neat'):
+    """ 
+    Compatible with path, or object
+    """
+    if isinstance(genome, str):
+      genome = pickle.load(open(genome, 'rb'))
+    if isinstance(config, str):
+      config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
+                    neat.DefaultSpeciesSet, neat.DefaultStagnation,
+                    config)
+
+    self.net = neat.nn.FeedForwardNetwork.create(genome, config)
+    self.winning_streak = 0
+
+  def predict(self, obs):
+    """Returns action in the format expected by the environment"""
+    output = self.net.activate(obs)
+    act_idx = max(range(len(output)), key=lambda i: output[i])
+    action = [1 if i == act_idx else 0 for i in range(3)]
+    return action

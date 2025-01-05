@@ -25,6 +25,7 @@ from slimevolleygym.mlp import games as games
 from slimevolleygym.mlp import Model
 from slimevolleygym import multiagent_rollout as rollout
 
+
 # Settings
 random_seed = 612
 population_size = 128
