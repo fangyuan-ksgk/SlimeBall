@@ -179,7 +179,7 @@ slimevolley = Game(env_name='SlimeVolley-v0',
   actionSelect='prob', # all, soft, hard
   input_size=12,
   output_size=3,
-  layers=[], # no hidden layers
+  layers=[10, 10], # 2 hidden layers (GA approach)
   i_act=1,
   o_act=1,
   max_episode_length = 3000,

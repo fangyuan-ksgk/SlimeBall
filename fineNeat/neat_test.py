@@ -6,6 +6,7 @@ np.set_printoptions(linewidth=160)
 
 from neat_src import * # NEAT
 from domain   import * # Task environments
+from neat_src import loadHyp, updateHyp
 
 def main(args):
   """Tests network on task N times and returns mean fitness.
@@ -18,8 +19,8 @@ def main(args):
   view    = args.view
 
   # Load task and parameters
-  hyp = loadHyp(pFileName=hyp_default)
-  updateHyp(hyp,hyp_adjust)
+  hyp = loadHyp(pFileName=hyp_default, load_task=load_task)
+  updateHyp(hyp,load_task, hyp_adjust)
   task = GymTask(games[hyp['task']], nReps=hyp['alg_nReps'])
 
   # Bullet needs some extra help getting started
@@ -29,6 +30,7 @@ def main(args):
   # Import and Test network
   wVec, aVec, wKey = importNet(infile)
   fitness = np.empty(1)
+  task.maxEpisodeLength = 5000
   fitness[:] = task.getFitness(wVec, aVec, view=view, nRep=nRep)
 
   print("[***]\tFitness:", fitness) 

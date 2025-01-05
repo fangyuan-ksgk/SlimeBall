@@ -3,8 +3,6 @@ import math
 import copy
 import json
 
-import sys
-sys.path.append('/Users/fangyuanyu/Grow/SlimeBall/fineNeat/prettyNEAT')
 from domain import *  # Task environments
 from utils import *
 from .ind import Ind
@@ -74,15 +72,17 @@ class Neat():
     p = self.p # readability
     
     # - Create Nodes -
-    nodeId = np.arange(0,p['ann_nInput']+ p['ann_nOutput']+1,1)
+    nodeId = np.arange(0, p['ann_nInput'] + p['ann_nOutput'] + 1, 1)
+    # nodeId = np.arange(0,p['ann_nInput']+ sum(p['ann_layers']) +  p['ann_nOutput']+1,1)    
     node = np.empty((3,len(nodeId)))
     node[0,:] = nodeId
     
     # Node types: [1:input, 2:hidden, 3:bias, 4:output]
     node[1,0]             = 4 # Bias
     node[1,1:p['ann_nInput']+1] = 1 # Input Nodes
+    # node[1,p['ann_nInput']+1:p['ann_nInput']+sum(p['ann_layers'])+1] = 2 # Hidden Nodes
     node[1,(p['ann_nInput']+1):\
-           (p['ann_nInput']+p['ann_nOutput']+1)]  = 2 # Output Nodes
+           (p['ann_nInput']+p['ann_nOutput']+1)]  = 4 # Output Nodes
     
     # Node Activations
     node[2,:] = p['ann_initAct']

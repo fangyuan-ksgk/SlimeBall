@@ -101,7 +101,7 @@ def checkBest(data):
 
 
 # -- Parallelization ----------------------------------------------------- -- #
-def batchMpiEval(pop, sameSeedForEachIndividual=True):
+def batchMpiEval(pop, sameSeedForEachIndividual=False):
   """Sends population to workers for evaluation one batch at a time.
 
   Args:

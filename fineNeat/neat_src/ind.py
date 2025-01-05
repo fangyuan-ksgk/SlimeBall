@@ -360,6 +360,9 @@ class Ind():
     nIns = len(nodeG[0,nodeG[1,:] == 1]) + len(nodeG[0,nodeG[1,:] == 4])
     nOuts = len(nodeG[0,nodeG[1,:] == 2])
     order, wMat = getNodeOrder(nodeG, connG)   # Topological Sort of Network
+    if order is False: 
+      return connG, innov
+    
     hMat = wMat[nIns:-nOuts,nIns:-nOuts]
     hLay = getLayer(hMat)+1 # hidden node layer number
 
