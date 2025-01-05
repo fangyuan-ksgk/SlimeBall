@@ -3,6 +3,7 @@ import numpy as np
 import sys
 from domain.make_env import make_env
 from neat_src import *
+import slimevolleygym
 
 # General Wrapper class for Gym environments
 
@@ -35,7 +36,13 @@ class GymTask():
       self.env = make_env(game.env_name)
     
     # Special needs...
-    self.needsClosed = (game.env_name.startswith("CartPoleSwingUp"))    
+    self.needsClosed = (game.env_name.startswith("CartPoleSwingUp"))  
+    
+    # Special needs (II). 
+    self.slime = game.env_name.startswith("SlimeVolley")
+    # if self.slime:
+    #   from slimevolleygym import BaselinePolicy
+    #   self.opponent = BaselinePolicy()
   
   def getFitness(self, wVec, aVec, hyp=None, view=False, nRep=False, seed=-1):
     """Get fitness of a single individual.
@@ -84,11 +91,13 @@ class GymTask():
       self.env.seed(seed)
     state = self.env.reset()
     self.env.t = 0
-    annOut = act(wVec, aVec, self.nInput, self.nOutput, state)  
-    action = selectAct(annOut,self.actSelect)    
+    annOut = act(wVec, aVec, self.nInput, self.nOutput, state)
+    action = selectAct(annOut, self.actSelect)          
+    if self.slime:
+        action = [1 if x > 0 else 0 for x in annOut[0]]  # Convert each output to binary
    
     wVec[wVec!=0]
-    predName = str(np.mean(wVec[wVec!=0]))
+    predName = str(np.mean(wVec[wVec!=0]))      
     state, reward, done, info = self.env.step(action)
     
     if self.maxEpisodeLength == 0:
@@ -102,8 +111,12 @@ class GymTask():
       totalReward = reward
     
     for tStep in range(self.maxEpisodeLength): 
-      annOut = act(wVec, aVec, self.nInput, self.nOutput, state) 
-      action = selectAct(annOut,self.actSelect) 
+      annOut = act(wVec, aVec, self.nInput, self.nOutput, state)
+    
+      action = selectAct(annOut, self.actSelect) 
+      if self.slime:
+        action = [1 if x > 0 else 0 for x in annOut[0]]  # Convert each output to binary
+
       state, reward, done, info = self.env.step(action)
       totalReward += reward  
       if view:

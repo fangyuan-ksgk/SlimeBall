@@ -170,3 +170,24 @@ bullet_ant = Game(env_name='AntBulletEnv-v0',
 )
 games['bullet_ant'] = bullet_ant
 
+
+
+# -- SlimeVolley ---------------------------------------------------------- -- #
+
+# > SlimeVolley
+slimevolley = Game(env_name='SlimeVolley-v0',
+  actionSelect='prob', # all, soft, hard
+  input_size=12,
+  output_size=3,
+  layers=[], # no hidden layers
+  i_act=1,
+  o_act=1,
+  max_episode_length = 3000,
+  in_out_labels = [],
+  time_factor=0,
+  h_act=[1,2,3,4,5,6,7,8,9,10],
+  weightCap = 2.0,
+  noise_bias=0.0,
+  output_noise=[False, False, False],
+)
+games['slimevolley'] = slimevolley

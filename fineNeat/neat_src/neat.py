@@ -4,7 +4,7 @@ import copy
 import json
 
 import sys
-sys.path.append('/Users/fangyuanyu/Grow/brain-tokyo-workshop/WANNRelease/prettyNEAT')
+sys.path.append('/Users/fangyuanyu/Grow/SlimeBall/fineNeat/prettyNEAT')
 from domain import *  # Task environments
 from utils import *
 from .ind import Ind
@@ -138,7 +138,7 @@ class Neat():
       self.pop[i].rank = rank[i]
  
 
-def loadHyp(pFileName, printHyp=False):
+def loadHyp(pFileName, load_task, printHyp=False):
   """Loads hyperparameters from .json file
   Args:
       pFileName - (string) - file name of hyperparameter file
@@ -149,7 +149,7 @@ def loadHyp(pFileName, printHyp=False):
   with open(pFileName) as data_file: hyp = json.load(data_file)
 
   # Task hyper parameters
-  task = GymTask(games[hyp['task']],paramOnly=True)
+  task = load_task(hyp)
   hyp['ann_nInput']   = task.nInput
   hyp['ann_nOutput']  = task.nOutput
   hyp['ann_initAct']  = task.activations[0]
@@ -168,7 +168,7 @@ def loadHyp(pFileName, printHyp=False):
     print(json.dumps(hyp, indent=4, sort_keys=True))
   return hyp
 
-def updateHyp(hyp,pFileName=None):
+def updateHyp(hyp, load_task, pFileName=None):
   """Overwrites default hyperparameters with those from second .json file
   """
   if pFileName != None:
@@ -177,7 +177,7 @@ def updateHyp(hyp,pFileName=None):
     hyp.update(update)
 
     # Task hyper parameters
-    task = GymTask(games[hyp['task']],paramOnly=True)
+    task = load_task(hyp)
     hyp['ann_nInput']   = task.nInput
     hyp['ann_nOutput']  = task.nOutput
     hyp['ann_initAct']  = task.activations[0]

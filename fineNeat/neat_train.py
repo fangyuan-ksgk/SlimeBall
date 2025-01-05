@@ -245,8 +245,8 @@ def main(args):
   hyp_default = args.default
   hyp_adjust  = args.hyperparam
 
-  hyp = loadHyp(pFileName=hyp_default)
-  updateHyp(hyp,hyp_adjust)
+  hyp = loadHyp(pFileName=hyp_default, load_task=load_task)
+  updateHyp(hyp,load_task,hyp_adjust)
 
   # Launch main thread and workers
   if (rank == 0):
