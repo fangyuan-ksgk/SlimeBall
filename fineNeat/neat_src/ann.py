@@ -70,7 +70,8 @@ def getNodeOrder(nodeG,connG):
   for i in range(len(connMat)):
       if (len(Q) == 0) or (i >= len(Q)):
           Q = []
-          # return False, False # Cycle found, can't sort
+          return False, False # Cycle found, can't sort
+        
       edge_out = connMat[Q[i],:]
       edge_in  = edge_in - edge_out # Remove previous layer nodes' conns from total
       nextNodes = np.setdiff1d(np.where(edge_in==0)[0], Q) # Exclude previous layer nodes

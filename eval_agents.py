@@ -102,7 +102,7 @@ def evaluate_multiagent(env, policy0, policy1, render_mode=False, n_trials=1000,
 
 if __name__=="__main__":
 
-  APPROVED_MODELS = ["baseline", "ppo", "ga", "cma", "random", "neat"]
+  APPROVED_MODELS = ["baseline", "ppo", "ga", "jacobian", "cma", "random", "neat"]
 
   def checkchoice(choice):
     choice = choice.lower()
@@ -118,7 +118,9 @@ if __name__=="__main__":
     "baseline": None,
     "ppo": "zoo/ppo/best_model.zip",
     "cma": "zoo/cmaes/slimevolley.cma.64.96.best.json",
-    "ga": "zoo/ga_sp/ga.json",
+    "jacobian": "training_scripts/ga_jacobian_estimate1/jacobian_00050000.json",
+    # "ga": "zoo/ga_sp/ga.json",
+    "ga": "training_scripts/ga_selfplay/ga_00050000.json",
     "random": None,
     "neat": "zoo/neat_sp/train_neat_selfplay_359.pkl",
     # "neat": "zoo/neat/train_neat_26.pkl"
@@ -131,12 +133,13 @@ if __name__=="__main__":
     "ga": makeSlimePolicyLite,
     "random": RandomPolicy,
     "neat": NEATPolicy,
+    "jacobian": makeSlimePolicyLite,
   }
 
   parser = argparse.ArgumentParser(description='Evaluate pre-trained agents against each other.')
-  parser.add_argument('--left', help='choice of (baseline, ppo, cma, ga, random)', type=str, default="baseline")
+  parser.add_argument('--left', help='choice of (baseline, ppo, cma, ga, random, jacobian)', type=str, default="baseline")
   parser.add_argument('--leftpath', help='path to left model (leave blank for zoo)', type=str, default="")
-  parser.add_argument('--right', help='choice of (baseline, ppo, cma, ga, random)', type=str, default="ga")
+  parser.add_argument('--right', help='choice of (baseline, ppo, cma, ga, random, jacobian)', type=str, default="ga")
   parser.add_argument('--rightpath', help='path to right model (leave blank for zoo)', type=str, default="")
   parser.add_argument('--render', action='store_true', help='render to screen?', default=False)
   parser.add_argument('--day', action='store_true', help='daytime colors?', default=False)

@@ -134,6 +134,21 @@ class Model:
       h = sample(h)
 
     return h
+  
+  def get_model_params(self):
+    """ 
+    Returns flattened array of all model parameters (weights and biases)
+    """
+    params = []
+    for i in range(len(self.shapes)):
+        # Flatten and append weights
+        params.extend(self.weight[i].flatten())
+        # Append biases
+        params.extend(self.bias[i].flatten())
+        # If output noise is enabled for this layer, append log_std parameters
+        if self.output_noise[i]:
+            params.extend(self.bias_log_std[i].flatten())
+    return np.array(params)
 
   def set_model_params(self, model_params):
     """ 

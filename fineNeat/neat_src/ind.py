@@ -314,7 +314,7 @@ class Ind():
     
     return connG, nodeG, innov
 
-  def mutAddConn(self, connG, nodeG, innov, gen, p):
+  def mutAddConn(self, connG, nodeG, innov, gen, p = {"ann_absWCap": 2}):
     """Add new connection to genome.
     To avoid creating recurrent connections all nodes are first sorted into
     layers, connections are then only created from nodes to nodes of the same or

@@ -6,6 +6,7 @@ else
     conda activate volleyball
 fi
 
+
 # Install dependencies
 pip install setuptools==65.5.0 pip==21
 pip install gym==0.19.0
@@ -17,3 +18,5 @@ pip install pygame==2.6.1
 pip install graphviz
 pip install neat-python
 pip install matplotlib
+pip install mpi4py 
+brew install open-mpi

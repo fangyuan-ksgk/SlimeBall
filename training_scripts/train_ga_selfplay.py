@@ -29,12 +29,12 @@ from slimevolleygym import multiagent_rollout as rollout
 # Settings
 random_seed = 612
 population_size = 128
-total_tournaments = 500000
+total_tournaments = 5000
 save_freq = 1000
 
 
 # Log results
-logdir = "ga_selfplay"
+logdir = "ga_selfplay1"
 if not os.path.exists(logdir):
   os.makedirs(logdir)
 
