@@ -50,11 +50,6 @@ base_policy = BaselinePolicy()
 param_count = policy_left.param_count
 print("Number of parameters of the neural net policy:", param_count) # 273 for slimevolleylite
 
-# json_path = "ga_jacobian_estimate1/jacobian_00050000.json"
-# import json 
-
-# with open(json_path, 'r') as f:
-#     indiv = json.load(f)
 
 population = np.random.normal(size=(population_size, param_count)) * 0.5 # each row is an agent.
 

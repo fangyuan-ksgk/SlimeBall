@@ -427,3 +427,5 @@ def obtainOutgoingConnections(connG, node_id):
     return exist
   else:
     return []
+  
+  

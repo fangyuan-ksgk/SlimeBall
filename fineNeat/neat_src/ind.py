@@ -412,3 +412,62 @@ class Ind():
         # print(":: No valid connection found")
 
     return connG, innov
+
+
+
+def initIndiv(shapes): 
+    nodes = [shapes[0][0]] + [s[0] for s in shapes[1:]] + [shapes[-1][-1]]
+
+    nodeId = np.arange(0, sum(nodes))
+    node = np.empty((3, len(nodeId)))
+    node[0, :] = nodeId
+    node[1, :] = 3 # Node types: [1:input, 2:output, 3:hidden, 4:bias]
+    node[1, nodes[0]] = 1 # Input Nodes
+    node[1, -nodes[-1]:] = 2 # Output Nodes
+    node[2, :] = 1 # Activations 
+
+    nConn = sum([t[0]*t[1] for t in shapes])
+    conn = np.empty((5, nConn))
+    conn[0, :] = np.arange(0, nConn)
+
+    cum_conn = 0
+    for i, (node_in, node_out) in enumerate(shapes): 
+        minimal_id = np.sum(nodes[:i]).astype(int)
+        maximal_id = np.sum(nodes[:i+1]).astype(int)
+        conn[1, cum_conn: cum_conn + int(node_in * node_out)] = np.tile(np.arange(0, node_in), node_out) + minimal_id
+        conn[2, cum_conn: cum_conn + int(node_in * node_out)] = np.repeat(np.arange(0, node_out), node_in) + minimal_id + node_in
+        cum_conn += int(node_in * node_out)
+
+    conn[3, :] = np.random.randn(nConn)
+    conn[4, :] = 1
+    
+    return node, conn 
+  
+  
+def calculate_layers(graph):
+    nodes = set(graph['node'])
+    edges = graph['edge']
+    
+    # Create adjacency dictionary for predecessors
+    predecessors = {node: [] for node in nodes}
+    for start, end in edges:
+        predecessors[end].append(start)
+    
+    # Initialize layers
+    layers = {}
+    
+    # Find input nodes (nodes with no predecessors)
+    input_nodes = {node for node in nodes if not predecessors[node]}
+    for node in input_nodes:
+        layers[node] = 0
+        
+    # Process remaining nodes
+    while len(layers) < len(nodes):
+        for node in nodes:
+            if node not in layers:
+                # Check if all predecessors have layers assigned
+                if all(pred in layers for pred in predecessors[node]):
+                    # Layer is max of predecessors' layers plus 1
+                    layers[node] = max((layers[pred] for pred in predecessors[node]), default=-1) + 1
+    
+    return layers
