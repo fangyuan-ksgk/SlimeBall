@@ -115,10 +115,10 @@ def labelInOut(pos, ind, env=None):
     
     # Create default labels following specified order
     stateLabels = (
-        [f"Input" for i in range(ind.nInput)] +      # Input nodes
+        [f"Input {i+1}" for i in range(ind.nInput)] +      # Input nodes
         [f"Bias" for i in range(ind.nBias)] +     # Bias nodes
         [f"Hidden" for i in range(ind.nHidden)] +    # Hidden nodes
-        [f"Output" for i in range(ind.nOutput)]      # Output nodes
+        [f"Output {i}" for i in range(ind.nOutput)]      # Output nodes
     )
     
     # Override with environment labels if available

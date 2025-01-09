@@ -47,14 +47,17 @@ def makeSlimePolicyLite(filename):
   model.load_model(filename)
   return model
 
+from typing import Optional 
 
 class Model:
   ''' simple feedforward model '''
-  def __init__(self, game):
+  def __init__(self, game, layers: Optional[list] = None):
     self.output_noise = game.output_noise
     self.env_name = game.env_name
-    self.layer_1 = game.layers[0]
-    self.layer_2 = game.layers[1]
+    # extend to multiple layers 
+    if layers is None: 
+      layers = game.layers
+    
     self.rnn_mode = False # in the future will be useful
     self.time_input = 0 # use extra sinusoid input
     self.sigma_bias = game.noise_bias # bias in stdev of output
@@ -64,15 +67,19 @@ class Model:
       self.time_input = 1
     self.input_size = game.input_size
     self.output_size = game.output_size
-    if self.layer_2 > 0:
-      self.shapes = [ (self.input_size + self.time_input, self.layer_1),
-                      (self.layer_1, self.layer_2),
-                      (self.layer_2, self.output_size)]  # input, 2 hidden, output layers
-    elif self.layer_2 == 0:
-      self.shapes = [ (self.input_size + self.time_input, self.layer_1),
-                      (self.layer_1, self.output_size)]  # input, 1 hidden, output layers
-    else:
-      assert False, "invalid layer_2"
+    
+    # make shapes from layers 
+    self.shapes = []
+    for i in range(len(layers)): 
+      assert layers[i] > 0, "layer size must be positive"
+      if layers[i] == 0: 
+        break
+      if i == 0: 
+        self.shapes.append((self.input_size + self.time_input, layers[i]))
+      else: 
+        self.shapes.append((layers[i-1], layers[i]))
+        
+    self.shapes.append((layers[-1], self.output_size))
 
     self.sample_output = False
     if game.activation == 'relu':
