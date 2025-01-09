@@ -2,7 +2,75 @@ import numpy as np
 import copy
 from .ann import getLayer, getNodeOrder, obtainOutgoingConnections
 
+def initIndiv(shapes): 
+  
+    nodes = [shapes[0][0]] + [s[0] for s in shapes[1:]] + [shapes[-1][-1]]
+    nInput = nodes[0]
+    nOutput = nodes[-1]
+    nHiddens = nodes[1:-1]
+    nHidden = sum(nHiddens)
+    nBias = 1 
+    nNode = nInput + nHidden + nOutput + nBias
+        
+    nodeId = np.arange(0, nNode)
+    node = np.empty((3, nNode))
+    node[0, :] = nodeId
+    node[1, :nInput] = 1 
+    node[1, nInput:nInput+nBias] = 4
+    node[1, nInput+nBias:nInput+nBias+nHidden] = 3
+    node[1, -nOutput:] = 2
 
+    node[2, :] = 1
+
+    nWeight = sum([s[0]*s[1] for s in shapes])
+    nAddBias = nHidden + nOutput
+    nConn = nWeight + nAddBias
+    conn = np.empty((5, nConn))
+
+    cum_conn = 0
+    cum_index = 0
+
+    # Add Node-Node Connection 
+    for i, (node_in, node_out) in enumerate(shapes): 
+        raw_id_in = np.tile(np.arange(0, node_in), node_out) + cum_index
+        raw_id_out = np.repeat(np.arange(0, node_out), node_in) + cum_index + node_in
+        
+        # Convert raw IDs to actual node IDs
+        id_in = np.where(raw_id_in >= nInput, raw_id_in + nBias, raw_id_in)
+        id_out = np.where(raw_id_out >= nInput, raw_id_out + nBias, raw_id_out)
+        
+        conn_idx = np.arange(cum_conn, cum_conn + int(node_in * node_out))
+        conn[1, conn_idx] = id_in
+        conn[2, conn_idx] = id_out
+        
+        cum_conn += int(node_in * node_out)
+        cum_index += node_in
+        
+
+    nWeight = cum_conn
+    # Add Bias-Node Connection to hidden nodes
+    for i, n_hidden in enumerate(nHiddens):
+        id_in = nInput
+        id_out = np.arange(0, n_hidden) + (cum_conn - nWeight) + nInput + nBias
+        conn_idx = np.arange(cum_conn, cum_conn + n_hidden)
+        conn[1, conn_idx] = id_in
+        conn[2, conn_idx] = id_out
+        cum_conn += n_hidden
+        
+    # add bias to output nodes 
+    id_in = nInput
+    id_out = np.arange(0, nOutput) + nInput + nBias + nHidden
+    conn_idx = np.arange(cum_conn, cum_conn + nOutput)
+    conn[1, conn_idx] = id_in
+    conn[2, conn_idx] = id_out
+        
+    conn[0, :] = np.arange(0, nConn)
+    conn[3, :] = np.random.randn(nConn) * 0.5
+    conn[4, :] = 1
+    
+    return node, conn 
+  
+  
 class Ind():
   """Individual class: genes, network, and fitness
   """ 
@@ -54,7 +122,12 @@ class Ind():
     self.rank    = []
     self.birth   = []
     self.species = []
-
+    
+  @classmethod 
+  def from_shapes(cls, shapes): 
+    node, conn = initIndiv(shapes)
+    return cls(conn, node)
+  
   def nConns(self):
     """Returns number of active connections
     """
@@ -416,73 +489,9 @@ class Ind():
 
     return connG, innov
 
-def initIndiv(shapes): 
-  
-    nodes = [shapes[0][0]] + [s[0] for s in shapes[1:]] + [shapes[-1][-1]]
-    nInput = nodes[0]
-    nOutput = nodes[-1]
-    nHiddens = nodes[1:-1]
-    nHidden = sum(nHiddens)
-    nBias = 1 
-    nNode = nInput + nHidden + nOutput + nBias
-        
-    nodeId = np.arange(0, nNode)
-    node = np.empty((3, nNode))
-    node[0, :] = nodeId
-    node[1, :nInput] = 1 
-    node[1, nInput:nInput+nBias] = 4
-    node[1, nInput+nBias:nInput+nBias+nHidden] = 3
-    node[1, -nOutput:] = 2
 
-    node[2, :] = 1
 
-    nWeight = sum([s[0]*s[1] for s in shapes])
-    nAddBias = nHidden + nOutput
-    nConn = nWeight + nAddBias
-    conn = np.empty((5, nConn))
 
-    cum_conn = 0
-    cum_index = 0
-
-    # Add Node-Node Connection 
-    for i, (node_in, node_out) in enumerate(shapes): 
-        raw_id_in = np.tile(np.arange(0, node_in), node_out) + cum_index
-        raw_id_out = np.repeat(np.arange(0, node_out), node_in) + cum_index + node_in
-        
-        # Convert raw IDs to actual node IDs
-        id_in = np.where(raw_id_in >= nInput, raw_id_in + nBias, raw_id_in)
-        id_out = np.where(raw_id_out >= nInput, raw_id_out + nBias, raw_id_out)
-        
-        conn_idx = np.arange(cum_conn, cum_conn + int(node_in * node_out))
-        conn[1, conn_idx] = id_in
-        conn[2, conn_idx] = id_out
-        
-        cum_conn += int(node_in * node_out)
-        cum_index += node_in
-        
-
-    nWeight = cum_conn
-    # Add Bias-Node Connection to hidden nodes
-    for i, n_hidden in enumerate(nHiddens):
-        id_in = nInput
-        id_out = np.arange(0, n_hidden) + (cum_conn - nWeight) + nInput + nBias
-        conn_idx = np.arange(cum_conn, cum_conn + n_hidden)
-        conn[1, conn_idx] = id_in
-        conn[2, conn_idx] = id_out
-        cum_conn += n_hidden
-        
-    # add bias to output nodes 
-    id_in = nInput
-    id_out = np.arange(0, nOutput) + nInput + nBias + nHidden
-    conn_idx = np.arange(cum_conn, cum_conn + nOutput)
-    conn[1, conn_idx] = id_in
-    conn[2, conn_idx] = id_out
-        
-    conn[0, :] = np.arange(0, nConn)
-    conn[3, :] = np.random.randn(nConn) * 0.5
-    conn[4, :] = 1
-    
-    return node, conn 
   
   
 def calculate_layers(graph):
