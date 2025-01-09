@@ -453,22 +453,30 @@ def initIndiv(shapes):
         id_in = np.where(raw_id_in >= nInput, raw_id_in + nBias, raw_id_in)
         id_out = np.where(raw_id_out >= nInput, raw_id_out + nBias, raw_id_out)
         
-        conn[1, cum_conn: cum_conn + int(node_in * node_out)] = id_in
-        conn[2, cum_conn: cum_conn + int(node_in * node_out)] = id_out
+        conn_idx = np.arange(cum_conn, cum_conn + int(node_in * node_out))
+        conn[1, conn_idx] = id_in
+        conn[2, conn_idx] = id_out
         
         cum_conn += int(node_in * node_out)
-        cum_index += len(id_out)
+        cum_index += node_in
         
-    nWeight = cum_index
+
+    nWeight = cum_conn
     # Add Bias-Node Connection to hidden nodes
     for i, n_hidden in enumerate(nHiddens):
-        conn[1, cum_index: cum_index + n_hidden] = nInput
-        conn[2, cum_index: cum_index + n_hidden] = np.arange(0, n_hidden) + (cum_index - nWeight) + nInput + nBias
-        cum_index += n_hidden
+        id_in = nInput
+        id_out = np.arange(0, n_hidden) + (cum_conn - nWeight) + nInput + nBias
+        conn_idx = np.arange(cum_conn, cum_conn + n_hidden)
+        conn[1, conn_idx] = id_in
+        conn[2, conn_idx] = id_out
+        cum_conn += n_hidden
         
     # add bias to output nodes 
-    conn[1, cum_index: cum_index + nOutput] = nInput
-    conn[2, cum_index: cum_index + nOutput] = np.arange(0, nOutput) + nInput + nBias + nHidden
+    id_in = nInput
+    id_out = np.arange(0, nOutput) + nInput + nBias + nHidden
+    conn_idx = np.arange(cum_conn, cum_conn + nOutput)
+    conn[1, conn_idx] = id_in
+    conn[2, conn_idx] = id_out
         
     conn[0, :] = np.arange(0, nConn)
     conn[3, :] = np.random.randn(nConn) * 0.5

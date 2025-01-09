@@ -18,29 +18,33 @@ def viewInd(ind, taskName):
   print('# of Connections in ANN: ', np.sum(wMat!=0))
     
   # Create Graph
-  nIn = env.input_size+1 # bias
-  nOut= env.output_size
-  G, layer= ind2graph(wMat, nIn, nOut)
-  pos = getNodeCoord(G,layer,taskName)
+  nIn = ind.nInput + ind.nBias # fixed 
+  nOut= ind.nOutput
+  G, layer= ind2graph(wMat, nIn, nOut) # pass | G is off by one node (likely hidden node is missing?)
+  pos = getNodeCoord(G,layer,nIn, nOut)
     
   # Draw Graph
   fig = plt.figure(figsize=(10,10), dpi=100)
   ax = fig.add_subplot(111)
   drawEdge(G, pos, wMat, layer)
-  nx.draw_networkx_nodes(G,pos,\
-    node_color='lightblue',node_shape='o',\
-    cmap='terrain',vmin=0,vmax=6)
+  nx.draw_networkx_nodes(G, pos,
+      node_color='lightblue',
+      node_size=800,           # Increased from default
+      node_shape='o')
   drawNodeLabels(G,pos,aVec) 
-  labelInOut(pos,env)
+  labelInOut(pos,ind)
+  
+  # Add margins to prevent cutoff
+  ax.margins(0.2)
   
   plt.tick_params(
-    axis='both',       # changes apply to the x-axis
-    which='both',      # both major and minor ticks are affected
-    bottom=False,      # ticks along the bottom edge are off
-    top=False,         # ticks along the top edge are off
-    left=False,
-    labelleft=False,
-    labelbottom=False) # labels along the bottom edge are off
+      axis='both',
+      which='both',
+      bottom=False,
+      top=False,
+      left=False,
+      labelleft=False,
+      labelbottom=False)
     
   return fig, ax
 
@@ -99,26 +103,57 @@ def getNodeCoord(G,layer,nIn, nOut):
     
     return pos
   
-def labelInOut(pos, env):
-  nIn  = env.input_size+1
-  nOut = env.output_size 
-  nNode= len(pos)
-  fixed_nodes = np.r_[np.arange(0,nIn),np.arange(nNode-nOut,nNode)]
-
-  if len(env.in_out_labels)>0:
-    stateLabels = ['bias'] + env.in_out_labels
-    labelDict = {}
-  for i in range(len(stateLabels)):
-        labelDict[fixed_nodes[i]] = stateLabels[i]
-      
-  for i in range(nIn):
-    plt.annotate(labelDict[i], xy=(pos[i][0]-0.5, pos[i][1]), xytext=(pos[i][0]-2.5, pos[i][1]-0.5),\
-               arrowprops=dict(arrowstyle="->",color='k',connectionstyle="angle"))
-
-  for i in range(nNode-nOut,nNode):
-    plt.annotate(labelDict[i], xy=(pos[i][0]+0.1, pos[i][1]), xytext=(pos[i][0]+1.5, pos[i][1]+1.0),\
-               arrowprops=dict(arrowstyle="<-",color='k',connectionstyle="angle"))
-
+def labelInOut(pos, ind, env=None):
+    """Label nodes in network visualization based on Ind structure
+    
+    Args:
+        pos: Node position dictionary for visualization
+        ind: Individual containing network structure
+        env: Optional environment for custom labels
+    """
+    nNode = len(pos)
+    
+    # Create default labels following specified order
+    stateLabels = (
+        [f"Input" for i in range(ind.nInput)] +      # Input nodes
+        [f"Bias" for i in range(ind.nBias)] +     # Bias nodes
+        [f"Hidden" for i in range(ind.nHidden)] +    # Hidden nodes
+        [f"Output" for i in range(ind.nOutput)]      # Output nodes
+    )
+    
+    # Override with environment labels if available
+    if env and hasattr(env, 'in_out_labels') and len(env.in_out_labels) > 0:
+        input_labels = env.in_out_labels[:ind.nInput]
+        output_labels = env.in_out_labels[-ind.nOutput:]
+        
+        # Replace default labels while preserving structure
+        stateLabels[:ind.nInput] = input_labels
+        stateLabels[-ind.nOutput:] = output_labels
+    
+    # Create label dictionary
+    labelDict = {i: label for i, label in enumerate(stateLabels)}
+    
+    # Draw input and bias labels
+    for i in range(ind.nInput + ind.nBias):
+        plt.annotate(labelDict[i], 
+                    xy=(pos[i][0]-0.5, pos[i][1]), 
+                    xytext=(pos[i][0]-2.5, pos[i][1]-0.5),
+                    arrowprops=dict(arrowstyle="->", color='k', connectionstyle="angle"))
+    
+    # # Draw hidden labels
+    # start_idx = ind.nInput + ind.nBias
+    # for i in range(start_idx, start_idx + ind.nHidden):
+    #     plt.annotate(labelDict[i],
+    #                 xy=(pos[i][0], pos[i][1]), 
+    #                 xytext=(pos[i][0]-1.5, pos[i][1]+1.0),
+    #                 arrowprops=dict(arrowstyle="->", color='gray', connectionstyle="angle"))
+        
+    # Draw output labels
+    for i in range(nNode - ind.nOutput, nNode):
+        plt.annotate(labelDict[i], 
+                    xy=(pos[i][0]+0.1, pos[i][1]), 
+                    xytext=(pos[i][0]+1.5, pos[i][1]+1.0),
+                    arrowprops=dict(arrowstyle="<-", color='k', connectionstyle="angle"))
     
 def drawNodeLabels(G, pos, aVec):  
   actLabel = np.array((['','( + )','(0/1)','(sin)','(gau)','(tanh)',\

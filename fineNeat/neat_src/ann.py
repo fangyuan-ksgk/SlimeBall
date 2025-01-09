@@ -46,8 +46,8 @@ def getNodeOrder(nodeG,connG):
   src  = conn[1,:].astype(int)
   dest = conn[2,:].astype(int)
 
-  # Reordering node : input, bias, output, hidden 
-  reordered_index = np.r_[node[0, node[1, :] ==1], node[0,node[1,:] == 4], node[0,node[1,:] == 2], node[0,node[1,:] == 3]]
+  # Reordering node : input, bias, output, hidden ?? should be input, bias, hidden, output ??
+  reordered_index = np.r_[node[0, node[1, :] ==1], node[0,node[1,:] == 4], node[0,node[1,:] == 3], node[0,node[1,:] == 2]]
 
   # Get Edge on reordered nodes 
   src_mask = (src.reshape(-1, 1) == reordered_index.reshape(1, -1)) # (n_conn, n_node)
