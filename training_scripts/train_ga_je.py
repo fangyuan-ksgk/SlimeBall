@@ -42,8 +42,6 @@ def mutate(param, param_count):
 policy_left = Model(games['slimevolleylite'])
 policy_right = Model(games['slimevolleylite'])
 
-
-
 from slimevolleygym import BaselinePolicy   
 base_policy = BaselinePolicy()
 

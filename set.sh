@@ -20,3 +20,5 @@ pip install neat-python
 pip install matplotlib
 pip install mpi4py 
 brew install open-mpi
+
+pip install seaborn

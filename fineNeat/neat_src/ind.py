@@ -42,6 +42,9 @@ class Ind():
     self.conn    = np.copy(conn)
     self.nInput  = sum(node[1,:]==1)
     self.nOutput = sum(node[1,:]==2)
+    self.nBias = sum(node[1,:]==4)
+    self.nHidden = sum(node[1,:]==3)
+    
     self.wMat    = []
     self.wVec    = []
     self.aVec    = []
@@ -420,7 +423,7 @@ def initIndiv(shapes):
     nOutput = nodes[-1]
     nHiddens = nodes[1:-1]
     nHidden = sum(nHiddens)
-    nBias = nHidden + nOutput 
+    nBias = 1 
     nNode = nInput + nHidden + nOutput + nBias
         
     nodeId = np.arange(0, nNode)
@@ -428,13 +431,12 @@ def initIndiv(shapes):
     node[0, :] = nodeId
     node[1, :nInput] = 1 
     node[1, nInput:nInput+nBias] = 4
-    node[1, nInput:nInput+nBias+nHidden] = 3
+    node[1, nInput+nBias:nInput+nBias+nHidden] = 3
     node[1, -nOutput:] = 2
 
     node[2, :] = 1
 
     nWeight = sum([s[0]*s[1] for s in shapes])
-
     nAddBias = nHidden + nOutput
     nConn = nWeight + nAddBias
     conn = np.empty((5, nConn))
@@ -448,26 +450,26 @@ def initIndiv(shapes):
         raw_id_out = np.repeat(np.arange(0, node_out), node_in) + cum_index + node_in
         
         # Convert raw IDs to actual node IDs
-        id_in = np.where(raw_id_in >= nInput, raw_id_in + nInput, raw_id_in)
-        id_out = np.where(raw_id_out >= nInput, raw_id_out + nInput, raw_id_out)
+        id_in = np.where(raw_id_in >= nInput, raw_id_in + nBias, raw_id_in)
+        id_out = np.where(raw_id_out >= nInput, raw_id_out + nBias, raw_id_out)
         
         conn[1, cum_conn: cum_conn + int(node_in * node_out)] = id_in
         conn[2, cum_conn: cum_conn + int(node_in * node_out)] = id_out
         
         cum_conn += int(node_in * node_out)
-        cum_index += node_in
+        cum_index += len(id_out)
         
-    cum_index = nWeight
-    # Add Bias-Node Connection 
+    nWeight = cum_index
+    # Add Bias-Node Connection to hidden nodes
     for i, n_hidden in enumerate(nHiddens):
-        conn[1, cum_index: cum_index + n_hidden] = np.arange(0, n_hidden) + cum_index - nWeight + nInput
-        conn[2, cum_index: cum_index + n_hidden] = np.arange(0, n_hidden) + cum_index - nWeight + nInput + nBias
+        conn[1, cum_index: cum_index + n_hidden] = nInput
+        conn[2, cum_index: cum_index + n_hidden] = np.arange(0, n_hidden) + (cum_index - nWeight) + nInput + nBias
         cum_index += n_hidden
         
     # add bias to output nodes 
-    conn[1, cum_index: cum_index + nOutput] = np.arange(0, nOutput) + cum_index - nWeight + nInput + nHidden
-    conn[2, cum_index: cum_index + nOutput] = np.arange(0, nOutput) + cum_index - nWeight + nInput + nBias + nHidden 
-            
+    conn[1, cum_index: cum_index + nOutput] = nInput
+    conn[2, cum_index: cum_index + nOutput] = np.arange(0, nOutput) + nInput + nBias + nHidden
+        
     conn[0, :] = np.arange(0, nConn)
     conn[3, :] = np.random.randn(nConn) * 0.5
     conn[4, :] = 1

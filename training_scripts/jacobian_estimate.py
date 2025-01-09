@@ -103,6 +103,7 @@ def estimate_jacobian_dg(f, x, num_samples=100, epsilon=1e-4, angles=False):
     else:
         v = generate_directions(num_samples, d)
         
+    v = angle_to_rotation_vector(np.random.uniform(0, 2*np.pi, num_samples), d)
     q, r = np.linalg.qr(v.T)
     v_normalized = q.T[:k]  # Only take k directions
     

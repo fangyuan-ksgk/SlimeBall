@@ -118,7 +118,7 @@ if __name__=="__main__":
     "baseline": None,
     "ppo": "zoo/ppo/best_model.zip",
     "cma": "zoo/cmaes/slimevolley.cma.64.96.best.json",
-    "jacobian": "training_scripts/ga_jacobian_estimate1/jacobian_00050000.json",
+    "jacobian": "training_scripts/ga_jacobian_estimate2/jacobian_00241000.json",
     # "ga": "zoo/ga_sp/ga.json",
     "ga": "training_scripts/ga_selfplay/ga_00135000.json",
     "random": None,

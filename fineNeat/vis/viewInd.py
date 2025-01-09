@@ -70,12 +70,9 @@ def ind2graph(wMat, nIn, nOut):
     return G, layer
 
 
-def getNodeCoord(G,layer,taskName):
-    env = games[taskName]
-
+def getNodeCoord(G,layer,nIn, nOut):
+  
     # Calculate positions of input and output
-    nIn  = env.input_size+1
-    nOut = env.output_size 
     nNode= len(G.nodes)
     fixed_pos = np.empty((nNode,2))
     fixed_nodes = np.r_[np.arange(0,nIn),np.arange(nNode-nOut,nNode)]
