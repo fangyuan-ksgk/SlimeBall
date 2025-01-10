@@ -90,15 +90,17 @@ def getNodeOrder(nodeG,connG):
   return Q, wMat
 
 
-def getLayer(wMat):
+def getLayer(wMat, timeout=1000):
   """Get layer of each node in weight matrix using a more efficient approach.
   Instead of iterating until convergence, we can use a graph traversal approach.
 
   Args:
-    wMat  - (np_array) - ordered weight matrix [N X N]
+    wMat    - (np_array) - ordered weight matrix [N X N]
+    timeout - (int)      - maximum number of iterations before timing out
 
   Returns:
-    layer - [int]      - layer # of each node
+    layer   - [int]      - layer # of each node
+             or None if timeout is reached
   """
   wMat[np.isnan(wMat)] = 0
   nNode = wMat.shape[0]
@@ -116,15 +118,21 @@ def getLayer(wMat):
   
   # Use BFS to assign layers
   current_layer = 0
+  iteration = 0
   while True:
+    # Check timeout
+    iteration += 1
+    if iteration > timeout:
+      return None
+      
     # Find nodes that receive input only from already-assigned layers
     unassigned_mask = (layers == -1)
     if not np.any(unassigned_mask):
       break
       
     # Find nodes whose inputs are all from previous layers
-    inputs_assigned = ~np.any(adj[unassigned_mask], axis=0) # for unassigned node, check if there is any incoming node with assigned layer
-    next_layer = np.where(unassigned_mask & inputs_assigned)[0] # get unassigned node with incoming node with assigned layer
+    inputs_assigned = ~np.any(adj[unassigned_mask], axis=0)
+    next_layer = np.where(unassigned_mask & inputs_assigned)[0]
     
     if len(next_layer) == 0:
       break
@@ -184,6 +192,38 @@ def getNodeMap(nodeG, connG):
       nodeMap[order[i]] = [L[i], i] # layer index, order index
     
   return nodeMap
+
+
+
+def getNodeInfo(nodeG, connG, timeout=50): 
+  """ 
+  node id --> layer index & order index
+  """
+  nIns = len(nodeG[0,nodeG[1,:] == 1]) + len(nodeG[0,nodeG[1,:] == 4])
+  nOuts = len(nodeG[0,nodeG[1,:] == 2])
+  order, wMat = getNodeOrder(nodeG, connG)
+  if order is False: 
+    return False, False, False
+
+  hMat = wMat[nIns:-nOuts,nIns:-nOuts]
+  temp_layer = getLayer(hMat, timeout=timeout)
+  if temp_layer is None: 
+    return False, order, wMat 
+  hLay = temp_layer+1 # need to add timeout for this function
+
+  if len(hLay) > 0:
+      lastLayer = max(hLay)+1
+  else:
+      lastLayer = 1
+      
+  L = np.r_[np.zeros(nIns), hLay, np.full((nOuts),lastLayer)].astype(int)
+  
+  nodeMap = {}
+  for i in range(len(nodeG[0])): 
+      nodeMap[order[i]] = [L[i], i] # layer index, order index
+    
+  return nodeMap, order, wMat
+
 
 # -- ANN Activation ------------------------------------------------------ -- #
 

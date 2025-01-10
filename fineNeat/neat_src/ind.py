@@ -1,6 +1,6 @@
 import numpy as np
 import copy
-from .ann import getLayer, getNodeOrder, obtainOutgoingConnections, getNodeMap, getNodeKey
+from .ann import getLayer, getNodeOrder, obtainOutgoingConnections, getNodeMap, getNodeInfo
 
 def initIndiv(shapes): 
   
@@ -167,9 +167,11 @@ class Ind():
     return int(np.sum(self.conn[4,:]))
 
   def express(self):
-    """Converts genes to weight matrix and activation vector
     """
-    order, wMat = getNodeOrder(self.node, self.conn)
+    Converts genes to nodeMap, order, and weight matrix | failed to express make current gene not expressable
+    """
+    node_map, order, wMat = getNodeInfo(self.node, self.conn, timeout=50) # cap on complexity here
+        
     if order is not False: # no cyclic connections
       self.wMat = wMat
       self.aVec = self.node[2,order]
@@ -178,6 +180,10 @@ class Ind():
       wVec[np.isnan(wVec)] = 0
       self.wVec  = wVec
       self.nConn = np.sum(wVec!=0)
+      
+    if node_map is not False and order is not False: 
+      self.max_layer = max([node_map[id][0] for id in node_map])
+      self.node_map = node_map
       return True
     else:
       return False
@@ -260,35 +266,8 @@ class Ind():
     return child
 
   def mutate(self,p,innov=None,gen=None):
-    """Randomly alter topology and weights of individual
-
-    Args:
-      p        - (dict)     - algorithm hyperparameters (see p/hypkey.txt)
-      child    - (Ind) - individual to be mutated
-        .conns - (np_array) - connection genes
-                 [5 X nUniqueGenes] 
-                 [0,:] == Innovation Number (unique Id)
-                 [1,:] == Source Node Id
-                 [2,:] == Destination Node Id
-                 [3,:] == Weight Value
-                 [4,:] == Enabled?  
-        .nodes - (np_array) - node genes
-                 [3 X nUniqueGenes]
-                 [0,:] == Node Id
-                 [1,:] == Type (1=input, 2=output 3=hidden 4=bias)
-                 [2,:] == Activation function (as int)
-      innov    - (np_array) - innovation record
-                 [5 X nUniqueGenes]
-                 [0,:] == Innovation Number
-                 [1,:] == Source
-                 [2,:] == Destination
-                 [3,:] == New Node?
-                 [4,:] == Generation evolved
-
-    Returns:
-        child   - (Ind)      - newly created individual
-        innov   - (np_array) - innovation record
-
+    """
+    Randomly alter topology and weights of individual
     """
     # Readability
     nConn = np.shape(self.conn)[1]
@@ -311,16 +290,25 @@ class Ind():
     connG[3, (connG[3,:] >  p['ann_absWCap'])] =  p['ann_absWCap']
     connG[3, (connG[3,:] < -p['ann_absWCap'])] = -p['ann_absWCap']
     
+        
     if (np.random.rand() < p['prob_addNode']) and np.any(connG[4,:]==1):
       connG, nodeG, innov = self.mutAddNode(connG, nodeG, innov, gen, p)
     
     if (np.random.rand() < p['prob_addConn']):
-      connG, innov = self.mutAddConn(connG, nodeG, innov, gen, p) 
+      connG, nodeG, innov = self.mutAddConn(connG, nodeG, innov, gen, p) 
     
     child = Ind(connG, nodeG)
     child.birth = gen
-
-    return child, innov
+    child.gen = gen + 1
+    child_valid = child.express()
+    if child_valid: 
+      cap_layer = p['cap_layer'] if 'cap_layer' in p else 6
+      child_valid = child_valid and (child.max_layer <= cap_layer)
+    
+    if not child_valid: 
+      return False, False 
+    else:
+      return child, innov    
 
   def mutAddNode(self, connG, nodeG, innov, gen, p):
     """
