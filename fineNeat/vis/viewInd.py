@@ -5,6 +5,15 @@ import sys
 sys.path.append('../domain/')
 sys.path.append('vis')
 from domain.config import games
+from neat_src.ind import getNodeOrder, getLayer, getNodeMap
+
+def get_nodeMap(ind): 
+  """ 
+  NodeMap: order_id, node_id (index on graph)
+  """
+  nodeMap = getNodeMap(ind.node, ind.conn)
+  nodeMap = {nodeMap[id][1]:id for id in nodeMap} # order -> node id map
+  return nodeMap
 
 def viewInd(ind, taskName):
   env = games[taskName]
@@ -31,7 +40,8 @@ def viewInd(ind, taskName):
       node_color='lightblue',
       node_size=800,           # Increased from default
       node_shape='o')
-  drawNodeLabels(G,pos,aVec) 
+  nodeMap = get_nodeMap(ind)
+  drawNodeLabels(G,pos,aVec, nodeMap) 
   labelInOut(pos,ind)
   
   # Add margins to prevent cutoff
@@ -91,12 +101,12 @@ def getNodeCoord(G,layer,nIn, nOut):
 
     _, nPerLayer = np.unique(layer, return_counts=True)
 
-    y = cLinspace(-2,fig_long+2,nPerLayer[0])
+    y = cLinspace(fig_long+2, -2, nPerLayer[0])
     for i in range(1,len(nPerLayer)):
       if i%2 == 0:
-        y = np.r_[y,cLinspace(0,fig_long,nPerLayer[i])]
+        y = np.r_[y,cLinspace(fig_long, 0, nPerLayer[i])]
       else:
-        y = np.r_[y,cLinspace(-1,fig_long+1,nPerLayer[i])]
+        y = np.r_[y,cLinspace(fig_long+1, -1, nPerLayer[i])]
 
     fixed_pos = np.c_[x.T,y.T]
     pos = dict(enumerate(fixed_pos.tolist()))
@@ -118,7 +128,7 @@ def labelInOut(pos, ind, env=None):
         [f"Input {i+1}" for i in range(ind.nInput)] +      # Input nodes
         [f"Bias" for i in range(ind.nBias)] +     # Bias nodes
         [f"Hidden" for i in range(ind.nHidden)] +    # Hidden nodes
-        [f"Output {i}" for i in range(ind.nOutput)]      # Output nodes
+        [f"Output {i+1}" for i in range(ind.nOutput)]      # Output nodes
     )
     
     # Override with environment labels if available
@@ -140,14 +150,6 @@ def labelInOut(pos, ind, env=None):
                     xytext=(pos[i][0]-2.5, pos[i][1]-0.5),
                     arrowprops=dict(arrowstyle="->", color='k', connectionstyle="angle"))
     
-    # # Draw hidden labels
-    # start_idx = ind.nInput + ind.nBias
-    # for i in range(start_idx, start_idx + ind.nHidden):
-    #     plt.annotate(labelDict[i],
-    #                 xy=(pos[i][0], pos[i][1]), 
-    #                 xytext=(pos[i][0]-1.5, pos[i][1]+1.0),
-    #                 arrowprops=dict(arrowstyle="->", color='gray', connectionstyle="angle"))
-        
     # Draw output labels
     for i in range(nNode - ind.nOutput, nNode):
         plt.annotate(labelDict[i], 
@@ -155,12 +157,18 @@ def labelInOut(pos, ind, env=None):
                     xytext=(pos[i][0]+1.5, pos[i][1]+1.0),
                     arrowprops=dict(arrowstyle="<-", color='k', connectionstyle="angle"))
     
-def drawNodeLabels(G, pos, aVec):  
-  actLabel = np.array((['','( + )','(0/1)','(sin)','(gau)','(tanh)',\
-                        '(sig)','( - )', '(abs)','(relu)','(cos)']))
-  listLabel = actLabel[aVec.astype(int)]  
-  label = dict(enumerate(listLabel))
-  nx.draw_networkx_labels(G,pos,labels=label)  
+def drawNodeLabels(G, pos, aVec, nodeMap):  
+    actLabel = np.array((['','( + )','(0/1)','(sin)','(gau)','(tanh)',\
+                         '(sig)','( - )', '(abs)','(relu)','(cos)']))
+    listLabel = actLabel[aVec.astype(int)]
+    
+    # Create labels using nodes from G
+    label = {node: f"{nodeMap[node]}\n{listLabel[node]}" for node in G.nodes()}
+    
+    # Create a new position dict with shifted y coordinates
+    pos_attrs = {node: (coord[0], coord[1] - 0.2) for node, coord in pos.items()}  # Adjust -0.1 to shift more/less
+    
+    nx.draw_networkx_labels(G, pos_attrs, labels=label)
   
   
 def drawEdge(G, pos, wMat, layer):

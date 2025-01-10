@@ -1,6 +1,6 @@
 import numpy as np
 import copy
-from .ann import getLayer, getNodeOrder, obtainOutgoingConnections
+from .ann import getLayer, getNodeOrder, obtainOutgoingConnections, getNodeMap, getNodeKey
 
 def initIndiv(shapes): 
   
@@ -128,6 +128,39 @@ class Ind():
     node, conn = initIndiv(shapes)
     return cls(conn, node)
   
+  def to_params(self): 
+    # Get ordered nodes and weight matrix
+    order, wMat = getNodeOrder(self.node, self.conn)
+    assert order is not False, "Cyclic connections found"
+
+    # Calculate node layers
+    nIns = sum(self.node[1,:] == 1) + sum(self.node[1,:] == 4)  # inputs + bias
+    nOuts = sum(self.node[1,:] == 2)  # outputs
+
+    # Get hidden layer structure
+    hMat = wMat[nIns:-nOuts, nIns:-nOuts]
+    hLay = getLayer(hMat) + 1 if hMat.size > 0 else []
+
+    # Assign layers to all nodes
+    lastLayer = max(hLay) + 1 if len(hLay) > 0 else 1
+    layers = np.r_[np.zeros(nIns), hLay, np.full((nOuts), lastLayer)]
+
+    # Group nodes and weights by layer | we should NOT assume full connections ...
+    params = []
+    unique_layers = sorted(set(layers))
+    for layer_idx in range(len(unique_layers)-1):
+        # Get nodes in current layer
+        curr_mask = layers == unique_layers[layer_idx]
+        next_mask = layers == unique_layers[layer_idx+1]
+        
+        # Extract weights between current and next layer
+        layer_weights = wMat[curr_mask][:, next_mask]
+        layer_nodes = self.node[1, order][next_mask]
+        
+        params.append((layer_weights, layer_nodes))
+    return params
+  
+
   def nConns(self):
     """Returns number of active connections
     """
@@ -290,39 +323,10 @@ class Ind():
     return child, innov
 
   def mutAddNode(self, connG, nodeG, innov, gen, p):
-    """Add new node to genome
-
-    Args:
-      connG    - (np_array) - connection genes
-                 [5 X nUniqueGenes] 
-                 [0,:] == Innovation Number (unique Id) (Ascending order)
-                 [1,:] == Source Node Id
-                 [2,:] == Destination Node Id
-                 [3,:] == Weight Value
-                 [4,:] == Enabled?  
-      nodeG    - (np_array) - node genes
-                 [3 X nUniqueGenes]
-                 [0,:] == Node Id
-                 [1,:] == Type (1=input, 2=output 3=hidden 4=bias)
-                 [2,:] == Activation function (as int)
-      innov    - (np_array) - innovation record
-                 [5 X nUniqueGenes]
-                 [0,:] == Innovation Number (Ascending order)
-                 [1,:] == Source
-                 [2,:] == Destination
-                 [3,:] == New Node?
-                 [4,:] == Generation evolved
-      gen      - (int) - current generation
-      p        - (dict)     - algorithm hyperparameters (see p/hypkey.txt)
-
-
-    Returns:
-      connG    - (np_array) - updated connection genes
-      nodeG    - (np_array) - updated node genes
-      innov    - (np_array) - updated innovation record
-
     """
-    # print(":: mutAddNode")
+    Add new node to genome
+    """
+
     if innov is None:
       newNodeId = int(max(nodeG[0,:]+1))
       newConnId = connG[0,-1]+1    
@@ -361,6 +365,8 @@ class Ind():
     # The 'weight to' the node is set to 1, the 'weight from' is set to the
     # original  weight. With a near linear activation function the change in performance should be minimal.
 
+    
+    
     connTo    = connG[:,connSplit].copy()
     connTo[0] = newConnId
     connTo[2] = newNodeId
@@ -370,10 +376,14 @@ class Ind():
     connFrom[0] = newConnId + 1
     connFrom[1] = newNodeId
     connFrom[3] = connG[3,connSplit] # weight set to previous weight value   
+    
+    print("... Adding Node ", newNodeId)
+    print("... Adding Connection From ", connTo[1], " to ", connTo[2])
+    print("... Adding Connection From ", connFrom[1], " to ", connFrom[2])
         
     newConns = np.vstack((connTo,connFrom)).T
         
-    # Disable original connection
+    # Disable original connection :: aha I see, so it's still here but disabled
     connG[4,connSplit] = 0
         
     # Record innovations
@@ -395,99 +405,126 @@ class Ind():
     To avoid creating recurrent connections all nodes are first sorted into
     layers, connections are then only created from nodes to nodes of the same or
     later layers.
-
-
-    Todo: check for preexisting innovations to avoid duplicates in same gen
-
-    Args:
-      connG    - (np_array) - connection genes
-                 [5 X nUniqueGenes] 
-                 [0,:] == Innovation Number (unique Id)
-                 [1,:] == Source Node Id
-                 [2,:] == Destination Node Id
-                 [3,:] == Weight Value
-                 [4,:] == Enabled?  
-      nodeG    - (np_array) - node genes
-                 [3 X nUniqueGenes]
-                 [0,:] == Node Id
-                 [1,:] == Type (1=input, 2=output 3=hidden 4=bias)
-                 [2,:] == Activation function (as int)
-      innov    - (np_array) - innovation record
-                 [5 X nUniqueGenes]
-                 [0,:] == Innovation Number
-                 [1,:] == Source
-                 [2,:] == Destination
-                 [3,:] == New Node?
-                 [4,:] == Generation evolved
-      gen      - (int)      - current generation
-      p        - (dict)     - algorithm hyperparameters (see p/hypkey.txt)
-
-
-    Returns:
-      connG    - (np_array) - updated connection genes
-      innov    - (np_array) - updated innovation record
-
     """
-    # 1. never check existence within Innov 
-    # 2. questionable use of setdiff1d ... 
-    # print(":: mutAddConn")
+
     if innov is None:
       newConnId = connG[0,-1]+1
     else:
       newConnId = innov[0,-1]+1 
 
-    nIns = len(nodeG[0,nodeG[1,:] == 1]) + len(nodeG[0,nodeG[1,:] == 4])
-    nOuts = len(nodeG[0,nodeG[1,:] == 2])
-    order, wMat = getNodeOrder(nodeG, connG)
-    
-    if order is False:
+    nodeMap = getNodeMap(nodeG, connG)
+    if nodeMap is False:
         # print(":: Failed to get node order")
-        return connG, innov
-        
-    hMat = wMat[nIns:-nOuts,nIns:-nOuts]
-    hLay = getLayer(hMat)+1
-    
-    if len(hLay) > 0:
-        lastLayer = max(hLay)+1
-    else:
-        lastLayer = 1
-        
-    L = np.r_[np.zeros(nIns), hLay, np.full((nOuts),lastLayer)]
-    
-    nodeKey = np.c_[nodeG[0,order], L]
-
-    sources = np.random.permutation(len(nodeKey)) # node index permutation
-    for src in sources:
-      srcLayer = nodeKey[src,1] # take source node according to index
-      dest = np.where(nodeKey[:,1] > srcLayer)[0] # pick all nodes in higher layers
+        return connG, nodeG, innov
       
-      # remove pre-existing outgoing connections
-      exist_conn = obtainOutgoingConnections(connG, nodeKey[src, 0])
-      exist_innov = obtainOutgoingConnections(innov, nodeKey[src, 0])
-      exist = np.unique(np.hstack((exist_conn, exist_innov)))
-      dest = np.setdiff1d(dest, exist)
-      
-      # Add a random valid connection
-      np.random.shuffle(dest)
-      if len(dest)>0:  # (there is a valid connection)
-        # print(":: Successfully added connection")
-        connNew = np.empty((5,1))
-        connNew[0] = newConnId
-        connNew[1] = nodeKey[src,0]
-        connNew[2] = nodeKey[dest[0],0]
-        connNew[3] = (np.random.rand()-0.5)*2*p['ann_absWCap']
-        connNew[4] = 1
-        connG = np.c_[connG,connNew]
+    sources = np.random.permutation(list(nodeMap.keys()))
+    for src_node_id in sources:
+        src_node_layer = nodeMap[src_node_id][0] # take source node according to index
+        dest_node_ids = [dest_node_id for dest_node_id in nodeMap if nodeMap[dest_node_id][0] > src_node_layer]
+        
+        # remove pre-existing outgoing connections
+        exist_conn = obtainOutgoingConnections(connG, src_node_id)
+        dest_node_ids = np.setdiff1d(dest_node_ids, exist_conn).astype(int)
 
-        # Record innovation
-        if innov is not None:
-          newInnov = np.hstack((connNew[0:3].flatten(), -1, gen)) # (5,)
-          innov = np.hstack((innov,newInnov[:,None])) # (5, ...)
-        break;
-      # else:
-        # print(":: No valid connection found")
+        np.random.shuffle(dest_node_ids)
+        if len(dest_node_ids)>0:  # (there is a valid connection)
+            connNew = np.empty((5,1))
+            connNew[0] = newConnId
+            connNew[1] = src_node_id
+            connNew[2] = dest_node_ids[0]
+            connNew[3] = 1
+            connNew[4] = 1
+            connG = np.c_[connG,connNew]
+        
+            print(" :::: Adding Connection from ", connNew[1], " to ", connNew[2])
+        
+            # Record innovation
+            if innov is not None:
+              newInnov = np.hstack((connNew[0:3].flatten(), -1, gen)) # (5,)
+              innov = np.hstack((innov,newInnov[:,None])) # (5, ...)
+            
+            return connG, nodeG, innov
+          
+    return connG, nodeG, innov
+        
+  
+  @classmethod 
+  def from_params(cls, params):
+    """
+    Still Buggy
+    Initialize Ind class instance from params
+    Risk losing 'innovation' trace
+    """
+    raise NotImplementedError
+  
+    # Count total nodes needed
+    n_inputs = params[0][0].shape[0]  # First layer's input size
+    n_outputs = params[-1][0].shape[1] # Last layer's output size
+    n_hidden = sum(w.shape[1] for w, _ in params[:-1])  # Hidden nodes across layers
+    n_bias = 1
+    n_total = n_inputs + n_hidden + n_outputs + n_bias
 
-    return connG, innov
+    # Create node genes [id, type, activation]
+    node = np.empty((3, n_total))
+    node[0, :] = np.arange(n_total)  # Node IDs
+    
+    # Set node types
+    node[1, :n_inputs] = 1  # Input nodes
+    node[1, n_inputs:n_inputs+n_bias] = 4  # Bias node
+    node[1, n_inputs+n_bias:n_inputs+n_bias+n_hidden] = 3  # Hidden nodes
+    node[1, -n_outputs:] = 2  # Output nodes
+    
+    # Set all activations to 1 (can be modified if needed)
+    node[2, :] = 1
+
+    # Count total connections needed
+    n_weights = sum(w.size for w, _ in params)  # Regular weights
+    n_bias_conns = n_hidden + n_outputs  # Bias connections
+    n_total_conns = n_weights + n_bias_conns
+
+    # Create connection genes [innov, source, dest, weight, enabled]
+    conn = np.empty((5, n_total_conns))
+    conn[0, :] = np.arange(n_total_conns)  # Innovation numbers
+    conn[4, :] = 1  # All connections enabled
+
+    # Fill in connections layer by layer
+    curr_conn = 0
+    curr_node = n_inputs + n_bias  # Start after inputs and bias
+
+    # Add regular connections
+    for w, _ in params:
+        rows, cols = w.shape
+        
+        # Get source and destination node indices
+        if curr_node == n_inputs + n_bias:  # First layer
+            sources = np.arange(n_inputs)
+        else:
+            sources = np.arange(curr_node - cols, curr_node)
+            
+        dests = np.arange(curr_node, curr_node + cols)
+        
+        # Create all connections between layers
+        src_idx = np.repeat(sources, cols)
+        dest_idx = np.tile(dests, rows)
+        weights = w.flatten()
+        
+        n_conns = len(src_idx)
+        conn_slice = slice(curr_conn, curr_conn + n_conns)
+        conn[1, conn_slice] = src_idx
+        conn[2, conn_slice] = dest_idx
+        conn[3, conn_slice] = weights
+        
+        curr_conn += n_conns
+        curr_node += cols
+
+    # Add bias connections
+    bias_node = n_inputs
+    hidden_and_output_nodes = np.arange(n_inputs + n_bias, n_total)
+    conn[1, -n_bias_conns:] = bias_node
+    conn[2, -n_bias_conns:] = hidden_and_output_nodes
+    conn[3, -n_bias_conns:] = np.random.randn(n_bias_conns) * 0.5
+
+    return cls(conn, node)
 
 
 

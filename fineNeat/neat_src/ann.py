@@ -91,41 +91,99 @@ def getNodeOrder(nodeG,connG):
 
 
 def getLayer(wMat):
-  """Get layer of each node in weight matrix
-  Traverse wMat by row, collecting layer of all nodes that connect to you (X).
-  Your layer is max(X)+1. Input and output nodes are ignored and assigned layer
-  0 and max(X)+1 at the end.
+  """Get layer of each node in weight matrix using a more efficient approach.
+  Instead of iterating until convergence, we can use a graph traversal approach.
 
   Args:
-    wMat  - (np_array) - ordered weight matrix
-           [N X N]
+    wMat  - (np_array) - ordered weight matrix [N X N]
 
   Returns:
     layer - [int]      - layer # of each node
-
-  Todo:
-    * With very large networks this might be a performance sink -- especially, 
-    given that this happen in the serial part of the algorithm. There is
-    probably a more clever way to do this given the adjacency matrix.
   """
-  wMat[np.isnan(wMat)] = 0  
-  wMat[wMat!=0] = 1
-  nNode = np.shape(wMat)[0]
-  layer = np.zeros((nNode))
+  wMat[np.isnan(wMat)] = 0
+  nNode = wMat.shape[0]
   
-  while True: 
-    prevOrder = np.copy(layer)
-    srcLayer = (wMat.T * layer[np.newaxis,:])
-    
-    # Handle empty arrays when taking max
-    maxVals = np.maximum(0, np.max(srcLayer, axis=1, initial=0))
-    layer = maxVals + 1
-    
-    if np.array_equal(prevOrder, layer):
+  # Create adjacency matrix (1 where connection exists)
+  adj = (wMat != 0).astype(int)
+  
+  # Find nodes with no incoming connections (sources)
+  in_degree = adj.sum(axis=0)
+  sources = np.where(in_degree == 0)[0]
+  
+  # Initialize layers
+  layers = np.full(nNode, -1)
+  layers[sources] = 0
+  
+  # Use BFS to assign layers
+  current_layer = 0
+  while True:
+    # Find nodes that receive input only from already-assigned layers
+    unassigned_mask = (layers == -1)
+    if not np.any(unassigned_mask):
       break
+      
+    # Find nodes whose inputs are all from previous layers
+    inputs_assigned = ~np.any(adj[unassigned_mask], axis=0) # for unassigned node, check if there is any incoming node with assigned layer
+    next_layer = np.where(unassigned_mask & inputs_assigned)[0] # get unassigned node with incoming node with assigned layer
     
-  return layer-1
+    if len(next_layer) == 0:
+      break
+      
+    current_layer += 1
+    layers[next_layer] = current_layer
+    
+  return layers
 
+
+def getNodeKey(nodeG, connG): 
+  """ 
+  Ordered node -- layer index
+  """
+  nIns = len(nodeG[0,nodeG[1,:] == 1]) + len(nodeG[0,nodeG[1,:] == 4])
+  nOuts = len(nodeG[0,nodeG[1,:] == 2])
+  order, wMat = getNodeOrder(nodeG, connG)
+  if order is False: 
+    return False 
+
+  hMat = wMat[nIns:-nOuts,nIns:-nOuts]
+  hLay = getLayer(hMat)+1
+
+  if len(hLay) > 0:
+      lastLayer = max(hLay)+1
+  else:
+      lastLayer = 1
+      
+  L = np.r_[np.zeros(nIns), hLay, np.full((nOuts),lastLayer)]
+  nodeKey = np.c_[nodeG[0,order], L]
+  
+  return nodeKey
+
+
+def getNodeMap(nodeG, connG): 
+  """ 
+  node id --> layer index & order index
+  """
+  nIns = len(nodeG[0,nodeG[1,:] == 1]) + len(nodeG[0,nodeG[1,:] == 4])
+  nOuts = len(nodeG[0,nodeG[1,:] == 2])
+  order, wMat = getNodeOrder(nodeG, connG)
+  if order is False: 
+    return False 
+
+  hMat = wMat[nIns:-nOuts,nIns:-nOuts]
+  hLay = getLayer(hMat)+1
+
+  if len(hLay) > 0:
+      lastLayer = max(hLay)+1
+  else:
+      lastLayer = 1
+      
+  L = np.r_[np.zeros(nIns), hLay, np.full((nOuts),lastLayer)].astype(int)
+  
+  nodeMap = {}
+  for i in range(len(nodeG[0])): 
+      nodeMap[order[i]] = [L[i], i] # layer index, order index
+    
+  return nodeMap
 
 # -- ANN Activation ------------------------------------------------------ -- #
 
@@ -424,6 +482,7 @@ def obtainOutgoingConnections(connG, node_id):
   if connG is not None: 
     srcIndx = np.where(connG[1,:]==node_id)[0]
     exist = connG[2,srcIndx]
+    exist = np.unique(exist).astype(int)
     return exist
   else:
     return []

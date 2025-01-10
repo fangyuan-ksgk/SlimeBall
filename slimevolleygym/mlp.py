@@ -51,12 +51,14 @@ from typing import Optional
 
 class Model:
   ''' simple feedforward model '''
-  def __init__(self, game, layers: Optional[list] = None):
-    self.output_noise = game.output_noise
+  def __init__(self, game, hidden_layers: Optional[list] = None):
+    self.output_noise = game.output_noise # for volleyball, no output noise
     self.env_name = game.env_name
     # extend to multiple layers 
-    if layers is None: 
+    if hidden_layers is None: 
       layers = game.layers
+    else:
+      layers = hidden_layers 
     
     self.rnn_mode = False # in the future will be useful
     self.time_input = 0 # use extra sinusoid input
@@ -189,6 +191,16 @@ class Model:
 
   def get_random_model_params(self, stdev=0.1):
     return np.random.randn(self.param_count)*stdev
+  
+  @classmethod
+  def from_indiv(cls, indiv, game): 
+      params = indiv.to_params()
+      hidden_shapes = [p[1].shape[0] for p in params][:-1]
+      new_policy = Model(game, hidden_layers=hidden_shapes)
+      for i in range(len(params)): 
+          new_policy.weight[i] = params[i][0]
+          new_policy.bias[i] = params[i][1]
+      return new_policy
 
 
 
