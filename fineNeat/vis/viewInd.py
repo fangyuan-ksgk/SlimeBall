@@ -1,11 +1,11 @@
 from matplotlib import pyplot as plt
 import networkx as nx
 import numpy as np
-import sys
-sys.path.append('../domain/')
-sys.path.append('vis')
 from domain.config import games
+
 from neat_src.ind import getNodeOrder, getLayer, getNodeMap
+import io 
+from PIL import Image
 
 def get_nodeMap(ind): 
   """ 
@@ -15,8 +15,7 @@ def get_nodeMap(ind):
   nodeMap = {nodeMap[id][1]:id for id in nodeMap} # order -> node id map
   return nodeMap
 
-def viewInd(ind, taskName):
-  env = games[taskName]
+def viewInd(ind):
   if isinstance(ind, str):
     ind = np.loadtxt(ind, delimiter=',') 
     wMat = ind[:,:-1]
@@ -24,7 +23,6 @@ def viewInd(ind, taskName):
   else:
     wMat = ind.wMat
     aVec = np.zeros((np.shape(wMat)[0]))  
-  print('# of Connections in ANN: ', np.sum(wMat!=0))
     
   # Create Graph
   nIn = ind.nInput + ind.nBias # fixed 
@@ -277,6 +275,13 @@ def cLinspace(start,end,N):
 
 def lload(fileName):
   return np.loadtxt(fileName, delimiter=',') 
+
+def fig2img(fig):
+    # Save figure to a temporary buffer.
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png', bbox_inches='tight', pad_inches=0)
+    buf.seek(0)
+    return Image.open(buf)
 
 
 

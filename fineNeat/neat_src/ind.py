@@ -258,6 +258,14 @@ class Ind():
     
     return child
 
+  def safe_mutate(self, p):
+    conn = self.conn 
+    conn[3] += np.random.randn(conn[3].shape[0]) * 0.1
+    node = self.node 
+    child = Ind(conn, node) 
+    assert child.express(), ":: Naive parameter mutation gives errored individual"
+    return child
+    
   def mutate(self,p,innov=None,gen=None, mute_top_change=False):
     """
     Randomly alter topology and weights of individual
@@ -297,7 +305,7 @@ class Ind():
     child = Ind(connG, nodeG)
     child.birth = gen
     child.gen = gen + 1
-    child_valid = child.express(timeout=p['timeout'] if 'timeout' in p else 10)
+    child_valid = child.express(timeout=p['timeout'] if 'timeout' in p else 50)
     if child_valid: 
       cap_layer = p['cap_layer'] if 'cap_layer' in p else 6
       child_valid = child_valid and (child.max_layer <= cap_layer)

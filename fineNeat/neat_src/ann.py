@@ -434,7 +434,7 @@ class NeatPolicy:
         self.indiv = indiv 
         self.game = game 
         
-        if not isinstance(self.indiv.aVec, np.ndarray): 
+        if self.indiv.aVec is None or self.indiv.aVec is not None and not isinstance(self.indiv.aVec, np.ndarray): 
             self.indiv.express()
         self.indiv.aVec[-1] = 1
     

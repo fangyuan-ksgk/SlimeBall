@@ -28,5 +28,6 @@
     "bestReps": 20,
     "cap_layer": 4,
     "stop_topology_mutate_generations": 200,
-    "ann_mutSigma": 0.1
+    "ann_mutSigma": 0.1,
+    "timeout": 50
 }

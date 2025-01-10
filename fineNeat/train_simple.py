@@ -7,6 +7,8 @@ from slimevolleygym import multiagent_rollout as rollout
 from neat_src import loadHyp, updateHyp, Ind
 from domain import load_task
 from neat_src.ann import NeatPolicy 
+from vis.viewInd import viewInd, fig2img
+import matplotlib.pyplot as plt
 
 
 # Settings
@@ -26,18 +28,18 @@ updateHyp(hyp,load_task,hyp_adjust)
 
 # Log results
 logdir = "../runs/sneat_sp"
+visdir = "../runs/sneat_sp/vis"
 if not os.path.exists(logdir):
   os.makedirs(logdir)
+if not os.path.exists(visdir):
+  os.makedirs(visdir)
 
 def mutate(ind, p): 
     child, _ = ind.mutate(p=p)
-    if child is None: 
-        child, _ = ind.mutate(p=p, mute_top_change=True)
     if child: 
-        return child 
+       return child 
     else:
-        print("Failed Mutation --- with muted topology change ??")
-        return ind
+        return ind.safe_mutate(p)
 
 
 game = games['slimevolleylite']
@@ -63,11 +65,11 @@ for tournament in range(1, total_tournaments+1):
 
   # Match between two agents
   score, length = rollout(env, policy_right, policy_left)
-  print("Score: ", score)
   
   history.append(length)
   
   # if score is positive, it means policy_right won.
+  # win -> mutate, therefore winning streak is used as heuristic for generation number here
   if score == 0: # if the game is tied, add noise to the left agent
     population[left_idx] = mutate(population[left_idx], p=hyp)
   elif score > 0:
@@ -80,6 +82,7 @@ for tournament in range(1, total_tournaments+1):
     winning_streak[left_idx] += 1
 
   if tournament % save_freq == 0:
+    
     model_filename = os.path.join(logdir, "sneat_"+str(tournament).zfill(8)+".json")
     with open(model_filename, 'wt') as out: # save best solution
       record_holder = np.argmax(winning_streak)
@@ -88,6 +91,11 @@ for tournament in range(1, total_tournaments+1):
 
   if (tournament ) % 100 == 0: # print best solution
     record_holder = np.argmax(winning_streak)
+    fig, _ = viewInd(population[record_holder])
+    plt.close(fig)
+    img = fig2img(fig)
+    img.save(os.path.join(visdir, "sneat_"+str(tournament).zfill(8)+".png"))
+    
     record = winning_streak[record_holder]
     print("tournament:", tournament,
           "best_winning_streak:", record,
