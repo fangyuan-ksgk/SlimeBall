@@ -107,7 +107,7 @@ class Model:
       self.weight.append(np.zeros(shape=shape))
       self.bias.append(np.zeros(shape=shape[1]))
       self.param_count += (np.product(shape) + shape[1])
-      if self.output_noise[idx]:
+      if self.output_noise[min(idx, len(self.output_noise)-1)]: # makeshift
         self.param_count += shape[1]
       log_std = np.zeros(shape=shape[1])
       self.bias_log_std.append(log_std)

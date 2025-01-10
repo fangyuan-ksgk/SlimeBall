@@ -184,17 +184,37 @@ def drawEdge(G, pos, wMat, layer):
       tmpMat[:,:start] *= 0
       tmpMat[:,end:] *= 0
       rows, cols = np.where(tmpMat != 0)
-      edges = zip(rows.tolist(), cols.tolist())
-      edgeLayer.append(nx.DiGraph())
-      edgeLayer[-1].add_edges_from(edges)
-    edgeLayer.append(edgeLayer.pop(0)) # move first layer to correct position
+      
+      # Skip if no edges in this layer
+      if len(rows) == 0:
+          continue
+          
+      weights = tmpMat[rows, cols]  # Get weights for each edge
+      edges = list(zip(rows.tolist(), cols.tolist()))
+      edgeLayer.append((nx.DiGraph(), weights))  # Store weights with graph
+      edgeLayer[-1][0].add_edges_from(edges)
+    
+    # Handle case where first layer has edges
+    if edgeLayer:
+        edgeLayer.append(edgeLayer.pop(0))
 
-    # Layer Colors
-    for i in range(len(edgeLayer)):
-      C = [i/len(edgeLayer)] * len(edgeLayer[i].edges) 
-      nx.draw_networkx_edges(G,pos,edgelist=edgeLayer[i].edges,\
-        alpha=.75,width=1.0,edge_color=C,edge_cmap=plt.cm.viridis,\
-        edge_vmin=0.0, edge_vmax=1.0,arrowsize=8)
+    # Draw edges with weight-based properties
+    for graph, weights in edgeLayer:
+        if len(weights) == 0:  # Skip empty layers
+            continue
+            
+        # Normalize weights to [0,1] range for alpha
+        alphas = np.abs(weights) / max(1.0, np.max(np.abs(weights)))
+        # Create color list based on weight signs (lightblue for positive, red for negative)
+        colors = ['lightblue' if w > 0 else '#ffb3b3' for w in weights]
+        
+        # Draw edges with individual alpha and color values
+        for (edge, alpha, color) in zip(graph.edges(), alphas, colors):
+            nx.draw_networkx_edges(G, pos, edgelist=[edge],
+                alpha=float(alpha),  # Convert to float in case of numpy type
+                width=1.0,
+                edge_color=[color],
+                arrowsize=8)
 
 def getLayer(wMat):
   '''
@@ -224,3 +244,6 @@ def cLinspace(start,end,N):
 
 def lload(fileName):
   return np.loadtxt(fileName, delimiter=',') 
+
+
+

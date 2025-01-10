@@ -1,5 +1,6 @@
 import numpy as np
 import copy
+import json
 from .ann import getLayer, getNodeOrder, obtainOutgoingConnections, getNodeMap, getNodeInfo
 
 def initIndiv(shapes): 
@@ -166,11 +167,11 @@ class Ind():
     """
     return int(np.sum(self.conn[4,:]))
 
-  def express(self):
+  def express(self, timeout=10):
     """
     Converts genes to nodeMap, order, and weight matrix | failed to express make current gene not expressable
     """
-    node_map, order, wMat = getNodeInfo(self.node, self.conn, timeout=50) # cap on complexity here
+    node_map, order, wMat = getNodeInfo(self.node, self.conn, timeout=timeout) # cap on complexity here
         
     if order is not False: # no cyclic connections
       self.wMat = wMat
@@ -265,7 +266,7 @@ class Ind():
     
     return child
 
-  def mutate(self,p,innov=None,gen=None):
+  def mutate(self,p,innov=None,gen=None, mute_top_change=False):
     """
     Randomly alter topology and weights of individual
     """
@@ -290,17 +291,20 @@ class Ind():
     connG[3, (connG[3,:] >  p['ann_absWCap'])] =  p['ann_absWCap']
     connG[3, (connG[3,:] < -p['ann_absWCap'])] = -p['ann_absWCap']
     
-        
-    if (np.random.rand() < p['prob_addNode']) and np.any(connG[4,:]==1):
+    gen = gen if gen is not None else self.gen if self.gen is not None else 0
+    top_mutate = gen <= p['stop_topology_mutate_generations'] if 'stop_topology_mutate_generations' in p else 200
+    top_mutate = top_mutate or mute_top_change
+    
+    if (np.random.rand() < p['prob_addNode'] * top_mutate) and np.any(connG[4,:]==1):
       connG, nodeG, innov = self.mutAddNode(connG, nodeG, innov, gen, p)
     
-    if (np.random.rand() < p['prob_addConn']):
+    if (np.random.rand() < p['prob_addConn'] * top_mutate):
       connG, nodeG, innov = self.mutAddConn(connG, nodeG, innov, gen, p) 
     
     child = Ind(connG, nodeG)
     child.birth = gen
     child.gen = gen + 1
-    child_valid = child.express()
+    child_valid = child.express(timeout=p['timeout'] if 'timeout' in p else 10)
     if child_valid: 
       cap_layer = p['cap_layer'] if 'cap_layer' in p else 6
       child_valid = child_valid and (child.max_layer <= cap_layer)
@@ -364,10 +368,6 @@ class Ind():
     connFrom[0] = newConnId + 1
     connFrom[1] = newNodeId
     connFrom[3] = connG[3,connSplit] # weight set to previous weight value   
-    
-    print("... Adding Node ", newNodeId)
-    print("... Adding Connection From ", connTo[1], " to ", connTo[2])
-    print("... Adding Connection From ", connFrom[1], " to ", connFrom[2])
         
     newConns = np.vstack((connTo,connFrom)).T
         
@@ -423,9 +423,7 @@ class Ind():
             connNew[3] = 1
             connNew[4] = 1
             connG = np.c_[connG,connNew]
-        
-            print(" :::: Adding Connection from ", connNew[1], " to ", connNew[2])
-        
+                
             # Record innovation
             if innov is not None:
               newInnov = np.hstack((connNew[0:3].flatten(), -1, gen)) # (5,)
@@ -435,7 +433,16 @@ class Ind():
           
     return connG, nodeG, innov
         
-  
+  def save(self, filename): 
+    with open(filename, 'w') as file: 
+      json.dump({'conn': self.conn.tolist(), 'node': self.node.tolist()}, file)
+    
+  @classmethod 
+  def load(cls, filename): 
+    with open(filename, 'r') as file: 
+      data = json.load(file)
+      return cls(np.array(data['conn']), np.array(data['node']))
+    
   @classmethod 
   def from_params(cls, params):
     """
