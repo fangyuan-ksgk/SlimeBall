@@ -129,36 +129,26 @@ class Ind():
     node, conn = initIndiv(shapes)
     return cls(conn, node)
   
-  def to_params(self): 
-    # Get ordered nodes and weight matrix
-    order, wMat = getNodeOrder(self.node, self.conn)
-    assert order is not False, "Cyclic connections found"
+  def to_params(self):  
+    # Now run the parameter extraction code
+    bias_idx = np.where(self.node[1,:] == 4)[0][0]
+    node_map, orders, wMat = getNodeInfo(self.node, self.conn)
+    layers = np.array([node_map[i][0] for i in range(len(node_map))])
+    b_idx = node_map[bias_idx][1]
 
-    # Calculate node layers
-    nIns = sum(self.node[1,:] == 1) + sum(self.node[1,:] == 4)  # inputs + bias
-    nOuts = sum(self.node[1,:] == 2)  # outputs
-
-    # Get hidden layer structure
-    hMat = wMat[nIns:-nOuts, nIns:-nOuts]
-    hLay = getLayer(hMat) + 1 if hMat.size > 0 else []
-
-    # Assign layers to all nodes
-    lastLayer = max(hLay) + 1 if len(hLay) > 0 else 1
-    layers = np.r_[np.zeros(nIns), hLay, np.full((nOuts), lastLayer)]
-
-    # Group nodes and weights by layer | we should NOT assume full connections ...
     params = []
-    unique_layers = sorted(set(layers))
-    for layer_idx in range(len(unique_layers)-1):
-        # Get nodes in current layer
-        curr_mask = layers == unique_layers[layer_idx]
-        next_mask = layers == unique_layers[layer_idx+1]
+    for layer_idx in range(max(layers)):
+        curr_layer_nodes = (layers == layer_idx) & (np.arange(len(layers)) != bias_idx)
+        next_layer_nodes = (layers == layer_idx + 1)
         
-        # Extract weights between current and next layer
-        layer_weights = wMat[curr_mask][:, next_mask]
-        layer_nodes = self.node[1, order][next_mask]
+        curr_indices = np.array([node_map[i][1] for i, is_curr in enumerate(curr_layer_nodes) if is_curr])
+        next_indices = np.array([node_map[i][1] for i, is_next in enumerate(next_layer_nodes) if is_next])
         
-        params.append((layer_weights, layer_nodes))
+        layer_weight = wMat[curr_indices][:, next_indices]
+        layer_bias = wMat[b_idx][next_indices]
+        
+        params.append((layer_weight, layer_bias))
+        
     return params
   
 

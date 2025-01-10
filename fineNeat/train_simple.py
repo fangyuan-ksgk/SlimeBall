@@ -28,7 +28,7 @@ def mutate(ind):
     return child
 
 game = games['slimevolleylite']
-population = [Ind.from_shapes([12, 7, 3]) for _ in range(population_size)]
+population = [Ind.from_shapes([(12, 3), (3, 2)]) for _ in range(population_size)]
 winning_streak = [0] * population_size # store the number of wins for this agent (including mutated ones)
 
 # create the gym environment, and seed it
@@ -67,7 +67,7 @@ for tournament in range(1, total_tournaments+1):
     with open(model_filename, 'wt') as out: # save best solution
       record_holder = np.argmax(winning_streak)
       record = winning_streak[record_holder]
-      json.dump([population[record_holder].tolist(), record], out, sort_keys=True, indent=0, separators=(',', ': '))
+      population[record_holder].save(model_filename)
 
   if (tournament ) % 100 == 0: # print best solution
     record_holder = np.argmax(winning_streak)
