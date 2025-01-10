@@ -1,13 +1,12 @@
 import os
-import json
 import numpy as np
 import gym
-import slimevolleygym
-import slimevolleygym.mlp as mlp
 from slimevolleygym.mlp import games as games
 from slimevolleygym.mlp import Model
 from slimevolleygym import multiagent_rollout as rollout
-from neat_src import Ind
+from neat_src import loadHyp, updateHyp, Ind
+from domain import load_task
+
 
 # Settings
 random_seed = 612
@@ -15,20 +14,33 @@ population_size = 128
 total_tournaments = 5000
 save_freq = 1000
 
+# Environment
+
+# Hyperparameters
+hyp_default = 'p/default_sneat.json'
+hyp_adjust = "p/volley.json"
+
+hyp = loadHyp(pFileName=hyp_default, load_task=load_task)
+updateHyp(hyp,load_task,hyp_adjust)
 
 # Log results
 logdir = "../runs/sneat_sp"
 if not os.path.exists(logdir):
   os.makedirs(logdir)
 
-def mutate(ind): 
-    child, _ = ind.mutate()
+def mutate(ind, p): 
+    child, _ = ind.mutate(p=p)
     if child is None: 
-        child, _ = ind.mutate(mute_top_change=True)
-    return child
+        child, _ = ind.mutate(p=p, mute_top_change=True)
+    if child: 
+        return child 
+    else:
+        print("Failed Mutation --- with muted topology change ??")
+        return ind
+
 
 game = games['slimevolleylite']
-population = [Ind.from_shapes([(12, 3), (3, 2)]) for _ in range(population_size)]
+population = [Ind.from_shapes([(game.input_size, 3), (3, game.output_size)]) for _ in range(population_size)]
 winning_streak = [0] * population_size # store the number of wins for this agent (including mutated ones)
 
 # create the gym environment, and seed it
@@ -52,13 +64,13 @@ for tournament in range(1, total_tournaments+1):
   
   # if score is positive, it means policy_right won.
   if score == 0: # if the game is tied, add noise to the left agent
-    population[left_idx] = mutate(population[left_idx])
+    population[left_idx] = mutate(population[left_idx], p=hyp)
   elif score > 0:
-    population[left_idx] = mutate(population[right_idx])
+    population[left_idx] = mutate(population[right_idx], p=hyp)
     winning_streak[left_idx] = winning_streak[right_idx]
     winning_streak[right_idx] += 1
   else:
-    population[right_idx] = mutate(population[left_idx])
+    population[right_idx] = mutate(population[left_idx], p=hyp)
     winning_streak[right_idx] = winning_streak[left_idx]
     winning_streak[left_idx] += 1
 

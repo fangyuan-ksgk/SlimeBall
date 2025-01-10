@@ -31,7 +31,7 @@ import slimevolleygym
 from slimevolleygym.mlp import makeSlimePolicy, makeSlimePolicyLite, NEATPolicy # simple pretrained models
 from slimevolleygym import BaselinePolicy
 from time import sleep
-import neat
+# import neat
 
 #import cv2
 

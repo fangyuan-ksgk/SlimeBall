@@ -124,6 +124,8 @@ class Ind():
     self.birth   = []
     self.species = []
     
+    self.gen = 0
+    
   @classmethod 
   def from_shapes(cls, shapes): 
     node, conn = initIndiv(shapes)
@@ -267,9 +269,10 @@ class Ind():
 
     
     # - Re-enable connections
-    disabled  = np.where(connG[4,:] == 0)[0]
-    reenabled = np.random.rand(1,len(disabled)) < p['prob_enable']
-    connG[4,disabled] = reenabled
+    # if mute_top_change:
+    #   disabled  = np.where(connG[4,:] == 0)[0]
+    #   reenabled = np.random.rand(1,len(disabled)) < p['prob_enable']
+    #   connG[4,disabled] = reenabled
          
     # - Weight mutation
     # [Canonical NEAT: 10% of weights are fully random...but seriously?]

@@ -84,17 +84,18 @@ class Model:
     self.shapes.append((layers[-1], self.output_size))
 
     self.sample_output = False
+    l = len(self.shapes)
     if game.activation == 'relu':
-      self.activations = [relu, relu, passthru]
+      self.activations = [relu] * (l-1) + [passthru]
     elif game.activation == 'sigmoid':
-      self.activations = [np.tanh, np.tanh, sigmoid]
+      self.activations = [np.tanh] * (l-1) + [sigmoid]
     elif game.activation == 'softmax':
-      self.activations = [np.tanh, np.tanh, softmax]
+      self.activations = [np.tanh] * (l-1) + [softmax]
       self.sample_output = True
     elif game.activation == 'passthru':
-      self.activations = [np.tanh, np.tanh, passthru]
+      self.activations = [np.tanh] * (l-1) + [passthru]
     else:
-      self.activations = [np.tanh, np.tanh, np.tanh]
+      self.activations = [np.tanh] * l
 
     self.weight = []
     self.bias = []
@@ -132,11 +133,6 @@ class Model:
       w = self.weight[i]
       b = self.bias[i]
       h = np.matmul(h, w) + b
-      if (self.output_noise[i] and (not mean_mode)):
-        out_size = self.shapes[i][1]
-        out_std = self.bias_std[i]
-        output_noise = np.random.randn(out_size)*out_std
-        h += output_noise
       h = self.activations[i](h)
 
     if self.sample_output:
@@ -197,15 +193,18 @@ class Model:
       params = indiv.to_params()
       hidden_shapes = [p[1].shape[0] for p in params][:-1]
       new_policy = Model(game, hidden_layers=hidden_shapes)
+      output_noise = np.zeros(shape=len(params), dtype=bool)
       for i in range(len(params)): 
           new_policy.weight[i] = params[i][0]
           new_policy.bias[i] = params[i][1]
+      new_policy.output_noise = output_noise
       return new_policy
 
 
 
 
-# class NEATPolicy: 
+class NEATPolicy: 
+  pass
 #   def __init__(self, 
 #                genome: Union[str, neat.DefaultGenome],
 #                config: Union[str, neat.Config] = 'zoo/neat_sp/config-neat'):

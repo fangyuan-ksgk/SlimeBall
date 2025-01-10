@@ -87,7 +87,7 @@ def ind2graph(wMat, nIn, nOut):
 def getNodeCoord(G,layer,nIn, nOut):
   
     # Calculate positions of input and output
-    nNode= len(G.nodes)
+    nNode= len(G.nodes) # wrong value
     fixed_pos = np.empty((nNode,2))
     fixed_nodes = np.r_[np.arange(0,nIn),np.arange(nNode-nOut,nNode)]
 
@@ -216,25 +216,58 @@ def drawEdge(G, pos, wMat, layer):
                 edge_color=[color],
                 arrowsize=8)
 
-def getLayer(wMat):
-  '''
-  Traverse wMat by row, collecting layer of all nodes that connect to you (X).
-  Your layer is max(X)+1
-  '''
-  wMat[np.isnan(wMat)] = 0  
-  wMat[wMat!=0]=1
-  nNode = np.shape(wMat)[0]
-  layer = np.zeros((nNode))
-  while(True): # Loop until sorting doesn't help any more
-    prevOrder = np.copy(layer)
-    for curr in range(nNode):
-      srcLayer=np.zeros((nNode))
-      for src in range(nNode):
-        srcLayer[src] = layer[src]*wMat[src,curr]   
-      layer[curr] = np.max(srcLayer)+1    
-    if all(prevOrder==layer):
-        break
-  return layer-1
+
+def getLayer(wMat, timeout=1000):
+  """Get layer of each node in weight matrix using a more efficient approach.
+  Instead of iterating until convergence, we can use a graph traversal approach.
+
+  Args:
+    wMat    - (np_array) - ordered weight matrix [N X N]
+    timeout - (int)      - maximum number of iterations before timing out
+
+  Returns:
+    layer   - [int]      - layer # of each node
+             or None if timeout is reached
+  """
+  wMat[np.isnan(wMat)] = 0
+  nNode = wMat.shape[0]
+  
+  # Create adjacency matrix (1 where connection exists)
+  adj = (wMat != 0).astype(int)
+  
+  # Find nodes with no incoming connections (sources)
+  in_degree = adj.sum(axis=0)
+  sources = np.where(in_degree == 0)[0]
+  
+  # Initialize layers
+  layers = np.full(nNode, -1)
+  layers[sources] = 0
+  
+  # Use BFS to assign layers
+  current_layer = 0
+  iteration = 0
+  while True:
+    # Check timeout
+    iteration += 1
+    if iteration > timeout:
+      return None
+      
+    # Find nodes that receive input only from already-assigned layers
+    unassigned_mask = (layers == -1)
+    if not np.any(unassigned_mask):
+      break
+      
+    # Find nodes whose inputs are all from previous layers
+    inputs_assigned = ~np.any(adj[unassigned_mask], axis=0)
+    next_layer = np.where(unassigned_mask & inputs_assigned)[0]
+    
+    if len(next_layer) == 0:
+      break
+      
+    current_layer += 1
+    layers[next_layer] = current_layer
+    
+  return layers
 
 def cLinspace(start,end,N):
   if N == 1:
