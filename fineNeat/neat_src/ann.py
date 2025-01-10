@@ -194,7 +194,6 @@ def getNodeMap(nodeG, connG):
   return nodeMap
 
 
-
 def getNodeInfo(nodeG, connG, timeout=50): 
   """ 
   node id --> layer index & order index
@@ -429,6 +428,22 @@ def importNet(fileName):
   return wVec, aVec, wKey
 
 
+# Simple Wrapper for policy model
+class NeatPolicy: 
+    def __init__(self, indiv, game): 
+        self.indiv = indiv 
+        self.game = game 
+        
+        if not isinstance(self.indiv.aVec, np.ndarray): 
+            self.indiv.express()
+        self.indiv.aVec[-1] = 1
+    
+    def predict(self, input): 
+        return act(self.indiv.wMat, self.indiv.aVec, self.game.input_size, self.game.output_size, input)[0]
+
+      
+      
+      
 class LayeredWANN(nn.Module): # ToBeTested
   
     def __init__(self, weights: torch.Tensor, aVec: torch.Tensor, nInput: int, nOutput: int):

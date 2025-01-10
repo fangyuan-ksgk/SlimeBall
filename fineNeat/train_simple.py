@@ -6,6 +6,7 @@ from slimevolleygym.mlp import Model
 from slimevolleygym import multiagent_rollout as rollout
 from neat_src import loadHyp, updateHyp, Ind
 from domain import load_task
+from neat_src.ann import NeatPolicy 
 
 
 # Settings
@@ -48,17 +49,21 @@ env = gym.make("SlimeVolley-v0")
 env.seed(random_seed)
 np.random.seed(random_seed)
 
+
 history = []
+
+
 for tournament in range(1, total_tournaments+1):
   
   # Random Pick Two Agents from Population
   left_idx, right_idx = np.random.choice(population_size, 2, replace=False)
-  
-  policy_right = Model.from_indiv(population[right_idx], game)
-  policy_left = Model.from_indiv(population[left_idx], game)
+
+  policy_right = NeatPolicy(population[right_idx], game)
+  policy_left = NeatPolicy(population[left_idx], game)
 
   # Match between two agents
   score, length = rollout(env, policy_right, policy_left)
+  print("Score: ", score)
   
   history.append(length)
   

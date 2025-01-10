@@ -21,7 +21,7 @@ def initIndiv(shapes):
     node[1, nInput+nBias:nInput+nBias+nHidden] = 3
     node[1, -nOutput:] = 2
 
-    node[2, :] = 1
+    node[2, :] = 9 # relu activation pattern 
 
     nWeight = sum([s[0]*s[1] for s in shapes])
     nAddBias = nHidden + nOutput
