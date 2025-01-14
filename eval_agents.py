@@ -28,7 +28,8 @@ import numpy as np
 import pickle
 import argparse
 import slimevolleygym
-from slimevolleygym.mlp import makeSlimePolicy, makeSlimePolicyLite, NEATPolicy # simple pretrained models
+from fineNeat.neat_src.ann import NEATPolicy
+from slimevolleygym.mlp import makeSlimePolicy, makeSlimePolicyLite # simple pretrained models
 from slimevolleygym import BaselinePolicy
 from time import sleep
 # import neat
@@ -102,7 +103,7 @@ def evaluate_multiagent(env, policy0, policy1, render_mode=False, n_trials=1000,
 
 if __name__=="__main__":
 
-  APPROVED_MODELS = ["baseline", "ppo", "ga", "jacobian", "cma", "random", "neat"]
+  APPROVED_MODELS = ["baseline", "ppo", "ga", "jacobian", "cma", "random", "neat", "sneat"]
 
   def checkchoice(choice):
     choice = choice.lower()
@@ -123,7 +124,7 @@ if __name__=="__main__":
     "ga": "training_scripts/ga_selfplay/ga_00135000.json",
     "random": None,
     "neat": "zoo/neat_sp/train_neat_selfplay_359.pkl",
-    # "neat": "zoo/neat/train_neat_26.pkl"
+    "sneat": "runs/sneat_sp/sneat_00305000.json"
   }
 
   MODEL = {
@@ -134,6 +135,7 @@ if __name__=="__main__":
     "random": RandomPolicy,
     "neat": NEATPolicy,
     "jacobian": makeSlimePolicyLite,
+    "sneat": NEATPolicy
   }
 
   parser = argparse.ArgumentParser(description='Evaluate pre-trained agents against each other.')
