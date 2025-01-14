@@ -118,8 +118,7 @@ class Ind():
     self.wVec    = []
     self.aVec    = []
     self.nConn   = []
-    self.fitness = [] # Mean fitness over trials
-    #self.fitMax  = [] # Best fitness over trials
+    self.fitness = -np.inf
     self.rank    = []
     self.birth   = []
     self.species = []
