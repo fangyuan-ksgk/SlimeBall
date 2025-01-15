@@ -4,10 +4,7 @@ import gym
 from slimevolleygym.mlp import games as games
 from slimevolleygym.mlp import Model
 from slimevolleygym import multiagent_rollout as rollout
-from neat_src import loadHyp, updateHyp, Ind
-from domain import load_task
-from neat_src.ann import NeatPolicy 
-from vis.viewInd import viewInd, fig2img
+from fineNeat import loadHyp, load_task, updateHyp, Ind, NeatPolicy, viewInd, fig2img 
 import matplotlib.pyplot as plt
 
 

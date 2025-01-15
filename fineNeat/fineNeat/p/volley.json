@@ -1,3 +1,4 @@
 {
-    "task":"slimevolley"
+    "task":"slimevolley",
+    "maxGen":10000
 }

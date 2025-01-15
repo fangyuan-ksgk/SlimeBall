@@ -3,10 +3,11 @@ import numpy as np
 import copy
 from .ann import exportNet
 
+    
 class DataGatherer():
   """Data recorder for NEAT algorithm
   """
-  def __init__(self, filename, hyp): 
+  def __init__(self, filename, hyp, log_path = "../runs/neat/"): 
     """
     Args:
       filename - (string) - path+prefix of file output destination
@@ -32,6 +33,15 @@ class DataGatherer():
       #e.g. self.fit_max   = np.array([]) 
 
     self.newBest = False
+    
+    self.reset_log_path(log_path)
+    
+  def reset_log_path(self, LOG_PATH): 
+    os.makedirs(LOG_PATH, exist_ok=True)
+    VIS_PATH = LOG_PATH + 'vis/'
+    os.makedirs(VIS_PATH, exist_ok=True)
+    self.LOG_PATH = LOG_PATH
+    self.VIS_PATH = VIS_PATH
 
   def gatherData(self, pop, species):
     """Collect and stores run data
@@ -43,7 +53,7 @@ class DataGatherer():
     conns = np.asarray([ind.nConn for ind in pop])
     
     # --- Evaluation Scale ---------------------------------------------------
-    if len(self.x_scale) is 0:
+    if len(self.x_scale) == 0:
       self.x_scale = np.append(self.x_scale, len(pop))
     else:
       self.x_scale = np.append(self.x_scale, self.x_scale[-1]+len(pop))
@@ -52,7 +62,7 @@ class DataGatherer():
     
     # --- Best Individual ----------------------------------------------------
     self.elite.append(pop[np.argmax(fitness)])
-    if len(self.best) is 0:
+    if len(self.best) == 0:
       self.best = copy.deepcopy(self.elite)
     elif (self.elite[-1].fitness > self.best[-1].fitness):
       self.best = np.append(self.best,copy.deepcopy(self.elite[-1]))
@@ -104,53 +114,49 @@ class DataGatherer():
     """
     ''' Save data to disk '''
     filename = self.filename
-    pref = 'log/' + filename
-
+    pref = self.LOG_PATH + filename
+    
     # --- Generation fit/complexity stats ------------------------------------ 
-    gStatLabel = ['x_scale',\
-                  'fit_med','fit_max','fit_top','node_med','conn_med']
-    genStats = np.empty((len(self.x_scale),0))
-    for i in range(len(gStatLabel)):
-      #e.g.         self.    fit_max          [:,None]
-      evalString = 'self.' + gStatLabel[i] + '[:,None]'
-      genStats = np.hstack((genStats, eval(evalString)))
-    lsave(pref + '_stats.out', genStats)
+    # gStatLabel = ['x_scale',\
+    #               'fit_med','fit_max','fit_top','node_med','conn_med']
+    # genStats = np.empty((len(self.x_scale),0))
+    # for i in range(len(gStatLabel)):
+    #   #e.g.         self.    fit_max          [:,None]
+    #   evalString = 'self.' + gStatLabel[i] + '[:,None]'
+    #   genStats = np.hstack((genStats, eval(evalString)))
+    # lsave(pref + '_stats.out', genStats)
     # ------------------------------------------------------------------------ 
 
 
     # --- Best Individual ----------------------------------------------------
-    wMat = self.best[gen].wMat
-    aVec = self.best[gen].aVec
-    exportNet(pref + '_best.out',wMat,aVec)
+    self.best[gen].save(pref + f'{gen}_best.json')
+    from ..vis.viewInd import viewInd, fig2img 
+    img = fig2img(viewInd(self.best[gen])[0])
+    img.save(self.VIS_PATH + f'_{gen}_best.png')
     
-    if gen > 1:
-      folder = 'log/' + filename + '_best/'
-      if not os.path.exists(folder):
-        os.makedirs(folder)
-      exportNet(folder + str(gen).zfill(4) +'.out',wMat,aVec)
     # ------------------------------------------------------------------------
 
 
     # --- Species Stats ------------------------------------------------------
-    if self.p['alg_speciate'] == 'neat':
-      lsave(pref + '_spec.out', self.spec_fit)
+    # if self.p['alg_speciate'] == 'neat':
+    #   lsave(pref + '_spec.csv', self.spec_fit)
     # ------------------------------------------------------------------------
 
 
     # --- MOO Fronts ---------------------------------------------------------
-    if self.p['alg_probMoo'] > 0:
-      lsave(pref + '_objVals.out',self.objVals)
+    # if self.p['alg_probMoo'] > 0:
+    #   lsave(pref + '_objVals.csv',self.objVals)
     # ------------------------------------------------------------------------
 
   def savePop(self,pop,filename):
     """Save all individuals in population as numpy arrays
     """
-    folder = 'log/' + filename + '_pop/'
+    folder = self.LOG_PATH + filename + '_pop/'
     if not os.path.exists(folder):
       os.makedirs(folder)
 
     for i in range(len(pop)):
-      exportNet(folder+'ind_'+str(i)+'.out', pop[i].wMat, pop[i].aVec)
+      pop[i].save(folder+'ind_'+str(i)+'.json')
 
 def lsave(filename, data):
   """Short hand for numpy save with csv and float precision defaults

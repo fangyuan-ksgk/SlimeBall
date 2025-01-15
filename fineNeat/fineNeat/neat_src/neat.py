@@ -172,7 +172,7 @@ def updateHyp(hyp, load_task, pFileName=None):
   """Overwrites default hyperparameters with those from second .json file
   """
   if pFileName != None:
-    print('\t*** Running with hyperparameters: ', pFileName, '\t***')
+    # print('\t*** Running with hyperparameters: ', pFileName, '\t***')
     with open(pFileName) as data_file: update = json.load(data_file)
     hyp.update(update)
 

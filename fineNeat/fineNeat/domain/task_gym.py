@@ -4,6 +4,9 @@ import sys
 from .make_env import make_env
 from ..neat_src import *
 import slimevolleygym
+from fineNeat.neat_src.ann import NeatPolicy
+from slimevolleygym import multiagent_rollout as rollout
+
 
 # General Wrapper class for Gym environments
 
@@ -69,7 +72,18 @@ class GymTask():
       reward[iRep] = self.testInd(wVec, aVec, view=view, seed=seed+iRep)
     fitness = np.mean(reward)
     return fitness
-
+  
+  def getTournamentScore(self, ind_left, ind_right_list): 
+    """
+    Get tournament score for an individual against a list of individuals
+    """
+    scores = []
+    for ind_right in ind_right_list: 
+      score_left, score_right = self.match_score(ind_left, ind_right)
+      scores.append(score_left)
+    fitness = np.mean(scores)
+    return fitness
+    
   def testInd(self, wVec, aVec, view=False,seed=-1):
     """Evaluate individual on task
     Args:
@@ -127,3 +141,27 @@ class GymTask():
       if done:
         break
     return totalReward
+  
+  def match_score(self, ind_left, ind_right): 
+    assert self.slime, "SlimeVolley is required for match_score"
+    from fineNeat.domain.config import games
+    game = games["slimevolley"]
+    policy_left = NeatPolicy(ind_left, game)
+    policy_right = NeatPolicy(ind_right, game)
+    score_right, t = rollout(self.env, policy_left, policy_right)
+    score_left = -score_right
+    # reward faster winning or slower losing
+    score_left = add_dual_agent_time_score(score_left, t, max_steps = self.env.t_limit)
+    score_right = add_dual_agent_time_score(score_right, t, max_steps = self.env.t_limit)
+    return score_left, score_right
+  
+
+def add_dual_agent_time_score(score, t, max_steps): 
+  """ 
+  For dual-agent game, reward faster winning or slower losing
+  """
+  time_factor = 0.5 * (max_steps - t) / max_steps  # Scale factor based on time taken
+  if score > 0: 
+    return score + time_factor
+  else: 
+    return score - time_factor

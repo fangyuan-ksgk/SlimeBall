@@ -450,6 +450,7 @@ class NEATPolicy:
       if self.indiv.aVec is None or self.indiv.aVec is not None and not isinstance(self.indiv.aVec, np.ndarray): 
           self.indiv.express()
       self.indiv.aVec[-1] = 1
+    
       
   def predict(self, input): 
       return act(self.indiv.wMat, self.indiv.aVec, self.indiv.nInput, self.indiv.nOutput, input)[0]

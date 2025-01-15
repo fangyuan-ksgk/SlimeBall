@@ -273,7 +273,8 @@ class Ind():
     nConn = np.shape(self.conn)[1]
     connG = np.copy(self.conn)
     nodeG = np.copy(self.node)
-
+    
+    innov_orig = np.copy(innov)
     
     # - Re-enable connections
     # if mute_top_change:
@@ -304,15 +305,14 @@ class Ind():
     child = Ind(connG, nodeG)
     child.birth = gen
     child.gen = gen + 1
-    child_valid = child.express(timeout=p['timeout'] if 'timeout' in p else 50)
-    if child_valid: 
-      cap_layer = p['cap_layer'] if 'cap_layer' in p else 6
-      child_valid = child_valid and (child.max_layer <= cap_layer)
+    child_valid = child.express(timeout=p['timeout'] if 'timeout' in p else 10)
     
     if not child_valid: 
-      return False, False 
+      child = self.safe_mutate(p)
+      return child, innov_orig 
     else:
       return child, innov    
+    
 
   def mutAddNode(self, connG, nodeG, innov, gen, p):
     """
@@ -442,84 +442,6 @@ class Ind():
     with open(filename, 'r') as file: 
       data = json.load(file)
       return cls(np.array(data['conn']), np.array(data['node']))
-    
-  @classmethod 
-  def from_params(cls, params):
-    """
-    Still Buggy
-    Initialize Ind class instance from params
-    Risk losing 'innovation' trace
-    """
-    raise NotImplementedError
-  
-    # Count total nodes needed
-    n_inputs = params[0][0].shape[0]  # First layer's input size
-    n_outputs = params[-1][0].shape[1] # Last layer's output size
-    n_hidden = sum(w.shape[1] for w, _ in params[:-1])  # Hidden nodes across layers
-    n_bias = 1
-    n_total = n_inputs + n_hidden + n_outputs + n_bias
-
-    # Create node genes [id, type, activation]
-    node = np.empty((3, n_total))
-    node[0, :] = np.arange(n_total)  # Node IDs
-    
-    # Set node types
-    node[1, :n_inputs] = 1  # Input nodes
-    node[1, n_inputs:n_inputs+n_bias] = 4  # Bias node
-    node[1, n_inputs+n_bias:n_inputs+n_bias+n_hidden] = 3  # Hidden nodes
-    node[1, -n_outputs:] = 2  # Output nodes
-    
-    # Set all activations to 1 (can be modified if needed)
-    node[2, :] = 1
-
-    # Count total connections needed
-    n_weights = sum(w.size for w, _ in params)  # Regular weights
-    n_bias_conns = n_hidden + n_outputs  # Bias connections
-    n_total_conns = n_weights + n_bias_conns
-
-    # Create connection genes [innov, source, dest, weight, enabled]
-    conn = np.empty((5, n_total_conns))
-    conn[0, :] = np.arange(n_total_conns)  # Innovation numbers
-    conn[4, :] = 1  # All connections enabled
-
-    # Fill in connections layer by layer
-    curr_conn = 0
-    curr_node = n_inputs + n_bias  # Start after inputs and bias
-
-    # Add regular connections
-    for w, _ in params:
-        rows, cols = w.shape
-        
-        # Get source and destination node indices
-        if curr_node == n_inputs + n_bias:  # First layer
-            sources = np.arange(n_inputs)
-        else:
-            sources = np.arange(curr_node - cols, curr_node)
-            
-        dests = np.arange(curr_node, curr_node + cols)
-        
-        # Create all connections between layers
-        src_idx = np.repeat(sources, cols)
-        dest_idx = np.tile(dests, rows)
-        weights = w.flatten()
-        
-        n_conns = len(src_idx)
-        conn_slice = slice(curr_conn, curr_conn + n_conns)
-        conn[1, conn_slice] = src_idx
-        conn[2, conn_slice] = dest_idx
-        conn[3, conn_slice] = weights
-        
-        curr_conn += n_conns
-        curr_node += cols
-
-    # Add bias connections
-    bias_node = n_inputs
-    hidden_and_output_nodes = np.arange(n_inputs + n_bias, n_total)
-    conn[1, -n_bias_conns:] = bias_node
-    conn[2, -n_bias_conns:] = hidden_and_output_nodes
-    conn[3, -n_bias_conns:] = np.random.randn(n_bias_conns) * 0.5
-
-    return cls(conn, node)
 
 
 

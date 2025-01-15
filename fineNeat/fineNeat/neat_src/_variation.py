@@ -80,7 +80,10 @@ def recombine(self, species, innov, gen):
       child, innov = pop[parents[0,i]].createChild(p,innov,gen,\
                 mate=pop[parents[1,i]])
 
-    child.express()
+    # Check validity and add to offspring
+    is_valid = child.express()
+    if not is_valid:
+      continue
     children.append(child)      
 
   return children, innov
