@@ -120,11 +120,10 @@ if __name__=="__main__":
     "ppo": "zoo/ppo/best_model.zip",
     "cma": "zoo/cmaes/slimevolley.cma.64.96.best.json",
     "jacobian": "training_scripts/ga_jacobian_estimate2/jacobian_00241000.json",
-    # "ga": "zoo/ga_sp/ga.json",
     "ga": "training_scripts/ga_selfplay/ga_00135000.json",
     "random": None,
-    "neat": "zoo/neat_sp/train_neat_selfplay_359.pkl",
-    "sneat": "runs/sneat_sp/sneat_00305000.json"
+    "neat": "runs/neat/volley9950_best.json",
+    "sneat": "runs/sneat_sp/sneat_00351000.json"
   }
 
   MODEL = {
