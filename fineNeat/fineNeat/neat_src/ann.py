@@ -219,7 +219,7 @@ def getNodeInfo(nodeG, connG, timeout=50):
   
   nodeMap = {}
   for i in range(len(nodeG[0])): 
-      nodeMap[order[i]] = [L[i], i] # layer index, order index
+      nodeMap[order[i]] = [L[i], i] # order index --> layer index, node id
     
   return nodeMap, order, wMat
 

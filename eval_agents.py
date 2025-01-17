@@ -103,7 +103,7 @@ def evaluate_multiagent(env, policy0, policy1, render_mode=False, n_trials=1000,
 
 if __name__=="__main__":
 
-  APPROVED_MODELS = ["baseline", "ppo", "ga", "jacobian", "cma", "random", "neat", "sneat"]
+  APPROVED_MODELS = ["baseline", "ppo", "ga", "jacobian", "cma", "random", "neat", "sneat", "sneat_tune"]
 
   def checkchoice(choice):
     choice = choice.lower()
@@ -123,7 +123,8 @@ if __name__=="__main__":
     "ga": "training_scripts/ga_selfplay/ga_00135000.json",
     "random": None,
     "neat": "runs/neat/volley9950_best.json",
-    "sneat": "runs/sneat_sp/sneat_00351000.json"
+    "sneat": "runs/sneat_sp/sneat_00351000.json",
+    "sneat_tune": "runs/sneat_tune/sneat_00005000.json"
   }
 
   MODEL = {
@@ -134,7 +135,8 @@ if __name__=="__main__":
     "random": RandomPolicy,
     "neat": NEATPolicy,
     "jacobian": makeSlimePolicyLite,
-    "sneat": NEATPolicy
+    "sneat": NEATPolicy,
+    "sneat_tune": NEATPolicy
   }
 
   parser = argparse.ArgumentParser(description='Evaluate pre-trained agents against each other.')

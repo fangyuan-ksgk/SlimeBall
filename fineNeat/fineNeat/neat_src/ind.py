@@ -387,6 +387,34 @@ class Ind():
     # print(":: Successfully added node")
     
     return connG, nodeG, innov
+  
+  def mutTurnConn(self, connG, nodeG, innov, gen, p = {"ann_turn_ratio": 0.1, 'sparsity_ratio': 0.8}): 
+    """Turn off/on 'non-essential' connections with probability"""
+    nodeMap = getNodeMap(nodeG, connG)
+    if nodeMap is False:
+        # print(":: Failed to get node order")
+        return connG, nodeG, innov
+    
+    conn = self.conn
+    node = self.node
+    
+    # pick non-essential connections and pick ratio of them to randomize 'on/off' status 
+    start_hidden_node_idx = self.nInput + self.nBias + self.nOutput
+    non_essential_conn_ids = (conn[1,:] >= start_hidden_node_idx) & (conn[2, :] >= start_hidden_node_idx)
+
+    # Randomly select connections to modify based on change_ratio
+    n_conns = np.sum(non_essential_conn_ids)
+    n_change = int(n_conns * p['ann_turn_ratio'])
+    change_mask = np.random.choice(n_conns, size=n_change, replace=False)
+
+    # Create array of 1s and 0s based on sparsity ratio
+    new_states = np.random.binomial(1, 1-p['sparsity_ratio'], size=n_change)
+
+    # Update selected connections
+    update_indices = np.where(non_essential_conn_ids)[0][change_mask]
+    conn[4, update_indices] = new_states
+    return conn, node, innov
+    
 
   def mutAddConn(self, connG, nodeG, innov, gen, p = {"ann_absWCap": 2}):
     """Add new connection to genome.
