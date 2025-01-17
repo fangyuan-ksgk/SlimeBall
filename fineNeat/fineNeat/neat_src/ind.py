@@ -307,11 +307,10 @@ class Ind():
     child.gen = gen + 1
     child_valid = child.express(timeout=p['timeout'] if 'timeout' in p else 10)
     
-    if not child_valid: 
-      child = self.safe_mutate(p)
-      return child, innov_orig 
+    if child_valid: 
+      return child, innov 
     else:
-      return child, innov    
+      return self, innov_orig 
     
 
   def mutAddNode(self, connG, nodeG, innov, gen, p):
