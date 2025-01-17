@@ -1,227 +1,101 @@
 import numpy as np
-import torch
-import torch.nn as nn
 
+def getMatOrder(nIns, nOuts, wMat): 
+    """ 
+    Get topological order of hidden nodes
+    """
+    connMat = np.copy(wMat[nIns:-nOuts,nIns:-nOuts])
+    connMat[connMat!=0] = 1
 
-# -- ANN Ordering -------------------------------------------------------- -- #
-
-def getNodeOrder(nodeG,connG):
-  """Builds connection matrix from genome through topological sorting.
-
-  Args:
-    nodeG - (np_array) - node genes
-            [3 X nUniqueGenes]
-            [0,:] == Node Id
-            [1,:] == Type (1=input, 2=output 3=hidden 4=bias)
-            [2,:] == Activation function (as int)
-
-    connG - (np_array) - connection genes
-            [5 X nUniqueGenes] 
-            [0,:] == Innovation Number (unique Id)
-            [1,:] == Source Node Id
-            [2,:] == Destination Node Id
-            [3,:] == Weight Value
-            [4,:] == Enabled?  
-
-  Returns:
-    Q    - [int]      - sorted node order as indices
-    wMat - (np_array) - ordered weight matrix
-           [N X N]
-
-    OR
-
-    False, False      - if cycle is found
-
-  Todo:
-    * setdiff1d is slow, as all numbers are positive ints is there a
-      better way to do with indexing tricks (as in quickINTersect)?
-  """
-  conn = np.copy(connG)
-  node = np.copy(nodeG)
-  nIns = len(node[0,node[1,:] == 1]) + len(node[0,node[1,:] == 4])
-  nOuts = len(node[0,node[1,:] == 2])
-
-  # Create connection and initial weight matrices
-  conn[3,conn[4,:]==0] = np.nan # disabled but still connected
-  src  = conn[1,:].astype(int)
-  dest = conn[2,:].astype(int)
-
-  # Reordering node : input, bias, output, hidden ?? should be input, bias, hidden, output ??
-  reordered_index = np.r_[node[0, node[1, :] ==1], node[0,node[1,:] == 4], node[0,node[1,:] == 3], node[0,node[1,:] == 2]]
-
-  # Get Edge on reordered nodes 
-  src_mask = (src.reshape(-1, 1) == reordered_index.reshape(1, -1)) # (n_conn, n_node)
-  dest_mask = (dest.reshape(-1, 1) == reordered_index.reshape(1, -1))
-  src = (src_mask @ np.arange(len(reordered_index)).reshape(-1, 1)).flatten()  # Convert to 1D
-  dest = (dest_mask @ np.arange(len(reordered_index)).reshape(-1, 1)).flatten()  # Convert to 1D
-
-  # Create weight matrix according to reordered nodes
-  wMat = np.zeros((np.shape(node)[1],np.shape(node)[1]))
-  wMat[src,dest] = conn[3,:] # assign weight to the connection
-
-  # Get connection matrix (connection between hidden nodes)
-  connMat = wMat[nIns+nOuts:,nIns+nOuts:]
-  connMat[connMat!=0] = 1
-
-  # Topological Sort of Hidden Nodes (according to connection matrix)
-  # Q : sorted "local index" of hidden nodes (smallest index 0)
-  edge_in = np.sum(connMat,axis=0) # sum of edges ending with each node
-  Q = np.where(edge_in==0)[0]  # array of node ids with no incoming connections
-  for i in range(len(connMat)):
-      if (len(Q) == 0) or (i >= len(Q)):
-          Q = []
-          return False, False # Cycle found, can't sort
+    # Topological Sort of Hidden Nodes (according to connection matrix)
+    edge_in = np.sum(connMat,axis=0) # sum of edges ending with each node
+    Q = np.where(edge_in==0)[0]  # array of node ids with no incoming connections
+    for i in range(len(connMat)):
+        if (len(Q) == 0) or (i >= len(Q)):
+            Q = []
+            return False # Cycle found, can't sort
         
-      edge_out = connMat[Q[i],:]
-      edge_in  = edge_in - edge_out # Remove previous layer nodes' conns from total
-      nextNodes = np.setdiff1d(np.where(edge_in==0)[0], Q) # Exclude previous layer nodes
-      Q = np.hstack((Q,nextNodes)) # Add next layer nodes to Q
+        edge_out = connMat[Q[i],:]
+        edge_in  = edge_in - edge_out # Remove previous layer nodes' conns from total
+        nextNodes = np.setdiff1d(np.where(edge_in==0)[0], Q) # Exclude previous layer nodes
+        Q = np.hstack((Q,nextNodes)) # Add next layer nodes to Q
 
-      if sum(edge_in) == 0:
-          break
+        if sum(edge_in) == 0:
+            break
 
-  # Add In and outs back and reorder wMat according to sort
-  Q += nIns+nOuts # Shifted local index due to reordering (input, bias, output, hidden) 
+    Q += nIns+nOuts # Shifted local index due to reordering (input, bias, output, hidden) 
 
-  Q = np.r_[np.arange(nIns),              
-          Q,                              
-          np.arange(nIns,nIns+nOuts)]     
-  
-  return Q, wMat
-
-
-def getLayer(wMat, timeout=1000):
-  """Get layer of each node in weight matrix using a more efficient approach.
-  Instead of iterating until convergence, we can use a graph traversal approach.
-
-  Args:
-    wMat    - (np_array) - ordered weight matrix [N X N]
-    timeout - (int)      - maximum number of iterations before timing out
-
-  Returns:
-    layer   - [int]      - layer # of each node
-             or None if timeout is reached
-  """
-  wMat[np.isnan(wMat)] = 0
-  nNode = wMat.shape[0]
-  
-  # Create adjacency matrix (1 where connection exists)
-  adj = (wMat != 0).astype(int)
-  
-  # Find nodes with no incoming connections (sources)
-  in_degree = adj.sum(axis=0)
-  sources = np.where(in_degree == 0)[0]
-  
-  # Initialize layers
-  layers = np.full(nNode, -1)
-  layers[sources] = 0
-  
-  # Use BFS to assign layers
-  current_layer = 0
-  iteration = 0
-  while True:
-    # Check timeout
-    iteration += 1
-    if iteration > timeout:
-      return None
-      
-    # Find nodes that receive input only from already-assigned layers
-    unassigned_mask = (layers == -1)
-    if not np.any(unassigned_mask):
-      break
-      
-    # Find nodes whose inputs are all from previous layers
-    inputs_assigned = ~np.any(adj[unassigned_mask], axis=0)
-    next_layer = np.where(unassigned_mask & inputs_assigned)[0]
+    Q = np.r_[np.arange(nIns),              
+            Q,                              
+            np.arange(nIns,nIns+nOuts)] # ordered row index of wMat: input, bias, hidden, output
     
-    if len(next_layer) == 0:
-      break
-      
-    current_layer += 1
-    layers[next_layer] = current_layer
+    return Q
+
+
+def getMat(nodeG, connG): 
+    """ 
+    Get Connection Weight Matrix for reordered Nodes
+    """
+    node = np.copy(nodeG)
+    conn = np.copy(connG)
+    nIns = len(node[0,node[1,:] == 1]) + len(node[0,node[1,:] == 4])
+    nOuts = len(node[0,node[1,:] == 2])
+
+    conn[3,conn[4,:]==0] = 0
+    src  = conn[1,:].astype(int)
+    dest = conn[2,:].astype(int)
+
+    # wMat having order: input, bias, hidden, output -- important for propagation
+    reordered_node_index = np.r_[node[0, node[1,:]==1], node[0, node[1,:]==4], node[0, node[1,:]==3], node[0, node[1,:]==2]]
+    reordered_node_index = reordered_node_index.astype(int)
     
-  return layers
+    src_mask = (src.reshape(-1, 1) == reordered_node_index.reshape(1, -1)) # (n_conn, n_node)
+    dest_mask = (dest.reshape(-1, 1) == reordered_node_index.reshape(1, -1))
+    src = (src_mask @ np.arange(len(reordered_node_index)).reshape(-1, 1)).flatten()  # Convert to 1D
+    dest = (dest_mask @ np.arange(len(reordered_node_index)).reshape(-1, 1)).flatten()  # Convert to 1D
 
-
-def getNodeKey(nodeG, connG): 
-  """ 
-  Ordered node -- layer index
-  """
-  nIns = len(nodeG[0,nodeG[1,:] == 1]) + len(nodeG[0,nodeG[1,:] == 4])
-  nOuts = len(nodeG[0,nodeG[1,:] == 2])
-  order, wMat = getNodeOrder(nodeG, connG)
-  if order is False: 
-    return False 
-
-  hMat = wMat[nIns:-nOuts,nIns:-nOuts]
-  hLay = getLayer(hMat)+1
-
-  if len(hLay) > 0:
-      lastLayer = max(hLay)+1
-  else:
-      lastLayer = 1
-      
-  L = np.r_[np.zeros(nIns), hLay, np.full((nOuts),lastLayer)]
-  nodeKey = np.c_[nodeG[0,order], L]
-  
-  return nodeKey
-
-
-def getNodeMap(nodeG, connG): 
-  """ 
-  node id --> layer index & order index
-  """
-  nIns = len(nodeG[0,nodeG[1,:] == 1]) + len(nodeG[0,nodeG[1,:] == 4])
-  nOuts = len(nodeG[0,nodeG[1,:] == 2])
-  order, wMat = getNodeOrder(nodeG, connG)
-  if order is False: 
-    return False 
-
-  hMat = wMat[nIns:-nOuts,nIns:-nOuts]
-  hLay = getLayer(hMat)+1
-
-  if len(hLay) > 0:
-      lastLayer = max(hLay)+1
-  else:
-      lastLayer = 1
-      
-  L = np.r_[np.zeros(nIns), hLay, np.full((nOuts),lastLayer)].astype(int)
-  
-  nodeMap = {}
-  for i in range(len(nodeG[0])): 
-      nodeMap[order[i]] = [L[i], i] # layer index, order index
+    # Create weight matrix according to reordered nodes
+    wMat = np.zeros((np.shape(node)[1],np.shape(node)[1]))
+    wMat[src,dest] = conn[3,:] # assign weight to the connection
     
-  return nodeMap
-
-
-def getNodeInfo(nodeG, connG, timeout=50): 
-  """ 
-  node id --> layer index & order index
-  """
-  nIns = len(nodeG[0,nodeG[1,:] == 1]) + len(nodeG[0,nodeG[1,:] == 4])
-  nOuts = len(nodeG[0,nodeG[1,:] == 2])
-  order, wMat = getNodeOrder(nodeG, connG)
-  if order is False: 
-    return False, False, False
-
-  hMat = wMat[nIns:-nOuts,nIns:-nOuts]
-  temp_layer = getLayer(hMat, timeout=timeout)
-  if temp_layer is None: 
-    return False, order, wMat 
-  hLay = temp_layer+1 # need to add timeout for this function
-
-  if len(hLay) > 0:
-      lastLayer = max(hLay)+1
-  else:
-      lastLayer = 1
-      
-  L = np.r_[np.zeros(nIns), hLay, np.full((nOuts),lastLayer)].astype(int)
-  
-  nodeMap = {}
-  for i in range(len(nodeG[0])): 
-      nodeMap[order[i]] = [L[i], i] # order index --> layer index, node id
+    wMat_row_order = getMatOrder(nIns, nOuts, wMat)
+    if wMat_row_order is False:
+        return False, False, False, False
     
-  return nodeMap, order, wMat
+    node2seq = {node_id: node_seq for node_id, node_seq in zip(reordered_node_index, np.arange(len(reordered_node_index)))}
+    seq2node = {node2seq[node_id]: node_id for node_id in node2seq}
+    node2order = {order_idx: int(seq2node[wMat_row_order[order_idx]]) for order_idx in range(len(wMat_row_order))}
+    return wMat, node2order, node2seq, seq2node
+
+
+def getLayer(wMat, node2seq, node2order, seq2node):
+    order2node = {node2order[node_idx]: node_idx for node_idx in node2order}
+    node2layer = {}
+    for _, node_idx in order2node.items():
+        # Find all nodes that connect to this node
+        row_idx = node2seq[node_idx]
+        input_nodes = np.where(wMat[:, row_idx] != 0)[0]
+        if len(input_nodes) == 0:
+            # Input nodes (no incoming connections)
+            node2layer[node_idx] = 0
+        else:
+            # Node's layer is max layer of inputs + 1
+            input_node_layers = [node2layer[seq2node[int(i)]] for i in input_nodes]
+            node2layer[node_idx] = np.max(input_node_layers) + 1
+    return node2layer 
+  
+  
+
+
+
+def getNodeInfo(nodeG, connG): 
+    wMat, node2order, node2seq, seq2node = getMat(nodeG, connG)
+    if wMat is False:
+        return False, False, False
+    node2layer = getLayer(wMat, node2seq, node2order, seq2node)
+    nodemap = {node_idx: (node2layer[node_idx], node2order[node_idx]) for node_idx in nodeG[0]}
+    seq_node_indices = [seq2node[seq_idx] for seq_idx in range(len(seq2node))]
+    return nodemap, seq_node_indices, wMat
 
 
 # -- ANN Activation ------------------------------------------------------ -- #
@@ -464,5 +338,3 @@ def obtainOutgoingConnections(connG, node_id):
     return exist
   else:
     return []
-  
-  

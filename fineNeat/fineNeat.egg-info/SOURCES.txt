@@ -21,6 +21,7 @@ fineNeat/neat_src/__init__.py
 fineNeat/neat_src/_speciate.py
 fineNeat/neat_src/_variation.py
 fineNeat/neat_src/ann.py
+fineNeat/neat_src/ann_old.py
 fineNeat/neat_src/dataGatherer.py
 fineNeat/neat_src/ind.py
 fineNeat/neat_src/neat.py

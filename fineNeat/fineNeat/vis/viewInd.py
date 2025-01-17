@@ -3,17 +3,9 @@ import networkx as nx
 import numpy as np
 from ..domain.config import games
 
-from ..neat_src.ind import getNodeOrder, getLayer, getNodeMap
+from ..neat_src.ann import getNodeInfo, getMat
 import io 
 from PIL import Image
-
-def get_nodeMap(ind): 
-  """ 
-  NodeMap: order_id, node_id (index on graph)
-  """
-  nodeMap = getNodeMap(ind.node, ind.conn)
-  nodeMap = {nodeMap[id][1]:id for id in nodeMap} # order -> node id map
-  return nodeMap
 
 def viewInd(ind):
   if isinstance(ind, str):
@@ -27,7 +19,11 @@ def viewInd(ind):
   # Create Graph
   nIn = ind.nInput + ind.nBias # fixed 
   nOut= ind.nOutput
-  G, layer= ind2graph(wMat, nIn, nOut) # pass | G is off by one node (likely hidden node is missing?)
+  node_map, seq_node_indices, wMat = getNodeInfo(ind.node, ind.conn)
+  layer = np.array([node_map[node_idx][0] for node_idx in seq_node_indices])
+  seq2node = {seq_idx: node_idx for seq_idx, node_idx in enumerate(seq_node_indices)}
+
+  G, layer= ind2graph(wMat, layer) # pass | G is off by one node (likely hidden node is missing?)
   pos = getNodeCoord(G,layer,nIn, nOut)
     
   # Draw Graph
@@ -38,8 +34,7 @@ def viewInd(ind):
       node_color='lightblue',
       node_size=800,           # Increased from default
       node_shape='o')
-  nodeMap = get_nodeMap(ind)
-  drawNodeLabels(G,pos,aVec, nodeMap) 
+  drawNodeLabels(G,pos,aVec, seq2node) 
   labelInOut(pos,ind)
   
   # Add margins to prevent cutoff
@@ -57,29 +52,20 @@ def viewInd(ind):
   return fig, ax
 
 
-def ind2graph(wMat, nIn, nOut):
-    hMat = wMat[nIn:-nOut,nIn:-nOut]
-    hLay = getLayer(hMat)+1
-
-    if len(hLay) > 0:
-      lastLayer = max(hLay)+1
-    else:
-      lastLayer = 1
-    L = np.r_[np.zeros(nIn), hLay, np.full((nOut),lastLayer) ]
-
-    layer = L
-    order = layer.argsort()
-    layer = layer[order]
+def ind2graph(wMat, layers):
+  
+    order = layers.argsort()
+    layers = layers[order]
 
     wMat = wMat[np.ix_(order,order)]
-    nLayer = layer[-1]
+    nLayer = layers[-1]
 
     # Convert wMat to Full Network Graph
     rows, cols = np.where(wMat != 0)
     edges = zip(rows.tolist(), cols.tolist())
     G = nx.DiGraph()
     G.add_edges_from(edges)
-    return G, layer
+    return G, layers
 
 
 def getNodeCoord(G,layer,nIn, nOut):
@@ -214,58 +200,6 @@ def drawEdge(G, pos, wMat, layer):
                 edge_color=[color],
                 arrowsize=8)
 
-
-def getLayer(wMat, timeout=1000):
-  """Get layer of each node in weight matrix using a more efficient approach.
-  Instead of iterating until convergence, we can use a graph traversal approach.
-
-  Args:
-    wMat    - (np_array) - ordered weight matrix [N X N]
-    timeout - (int)      - maximum number of iterations before timing out
-
-  Returns:
-    layer   - [int]      - layer # of each node
-             or None if timeout is reached
-  """
-  wMat[np.isnan(wMat)] = 0
-  nNode = wMat.shape[0]
-  
-  # Create adjacency matrix (1 where connection exists)
-  adj = (wMat != 0).astype(int)
-  
-  # Find nodes with no incoming connections (sources)
-  in_degree = adj.sum(axis=0)
-  sources = np.where(in_degree == 0)[0]
-  
-  # Initialize layers
-  layers = np.full(nNode, -1)
-  layers[sources] = 0
-  
-  # Use BFS to assign layers
-  current_layer = 0
-  iteration = 0
-  while True:
-    # Check timeout
-    iteration += 1
-    if iteration > timeout:
-      return None
-      
-    # Find nodes that receive input only from already-assigned layers
-    unassigned_mask = (layers == -1)
-    if not np.any(unassigned_mask):
-      break
-      
-    # Find nodes whose inputs are all from previous layers
-    inputs_assigned = ~np.any(adj[unassigned_mask], axis=0)
-    next_layer = np.where(unassigned_mask & inputs_assigned)[0]
-    
-    if len(next_layer) == 0:
-      break
-      
-    current_layer += 1
-    layers[next_layer] = current_layer
-    
-  return layers
 
 def cLinspace(start,end,N):
   if N == 1:

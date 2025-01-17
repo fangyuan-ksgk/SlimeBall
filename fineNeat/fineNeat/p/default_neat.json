@@ -25,6 +25,7 @@
     "spec_geneCoef": 1,
     "spec_weightCoef": 0.5,
     "save_mod": 8,
-    "bestReps": 20
-
+    "bestReps": 20,
+    "prob_mutTurnConn": 0.5,
+    "sparsity_ratio": 0.5
 }

@@ -1,7 +1,7 @@
 import numpy as np
 import copy
 import json
-from .ann import getLayer, getNodeOrder, obtainOutgoingConnections, getNodeMap, getNodeInfo
+from .ann import getNodeInfo, obtainOutgoingConnections
 
 def initIndiv(shapes): 
   
@@ -130,28 +130,6 @@ class Ind():
     node, conn = initIndiv(shapes)
     return cls(conn, node)
   
-  def to_params(self):  
-    # Now run the parameter extraction code
-    bias_idx = np.where(self.node[1,:] == 4)[0][0]
-    node_map, orders, wMat = getNodeInfo(self.node, self.conn)
-    layers = np.array([node_map[i][0] for i in range(len(node_map))])
-    b_idx = node_map[bias_idx][1]
-
-    params = []
-    for layer_idx in range(max(layers)):
-        curr_layer_nodes = (layers == layer_idx) & (np.arange(len(layers)) != bias_idx)
-        next_layer_nodes = (layers == layer_idx + 1)
-        
-        curr_indices = np.array([node_map[i][1] for i, is_curr in enumerate(curr_layer_nodes) if is_curr])
-        next_indices = np.array([node_map[i][1] for i, is_next in enumerate(next_layer_nodes) if is_next])
-        
-        layer_weight = wMat[curr_indices][:, next_indices]
-        layer_bias = wMat[b_idx][next_indices]
-        
-        params.append((layer_weight, layer_bias))
-        
-    return params
-  
 
   def nConns(self):
     """Returns number of active connections
@@ -162,18 +140,18 @@ class Ind():
     """
     Converts genes to nodeMap, order, and weight matrix | failed to express make current gene not expressable
     """
-    node_map, order, wMat = getNodeInfo(self.node, self.conn, timeout=timeout) # cap on complexity here
+    node_map, seq_node_indices, wMat = getNodeInfo(self.node, self.conn) # cap on complexity here
         
-    if order is not False: # no cyclic connections
+    if seq_node_indices is not False: # no cyclic connections
       self.wMat = wMat
-      self.aVec = self.node[2,order]
+      self.aVec = self.node[2,seq_node_indices]
 
       wVec = self.wMat.flatten()
       wVec[np.isnan(wVec)] = 0
       self.wVec  = wVec
       self.nConn = np.sum(wVec!=0)
       
-    if node_map is not False and order is not False: 
+    if node_map is not False and seq_node_indices is not False: 
       self.max_layer = max([node_map[id][0] for id in node_map])
       self.node_map = node_map
       return True
@@ -265,7 +243,7 @@ class Ind():
     assert child.express(), ":: Naive parameter mutation gives errored individual"
     return child
     
-  def mutate(self,p,innov=None,gen=None, mute_top_change=False):
+  def mutate(self,p,innov=None,gen=None, mute_top_change=True):
     """
     Randomly alter topology and weights of individual
     """
@@ -276,11 +254,8 @@ class Ind():
     
     innov_orig = np.copy(innov)
     
-    # - Re-enable connections
-    # if mute_top_change:
-    #   disabled  = np.where(connG[4,:] == 0)[0]
-    #   reenabled = np.random.rand(1,len(disabled)) < p['prob_enable']
-    #   connG[4,disabled] = reenabled
+    # - Change connection status (Turn On/Off)
+    connG, nodeG, innov = self.mutSparsity(p, innov)
          
     # - Weight mutation
     # [Canonical NEAT: 10% of weights are fully random...but seriously?]
@@ -381,38 +356,37 @@ class Ind():
       innov = np.hstack((innov,newInnov))
       
     # Add new structures to genome
-    nodeG = np.hstack((nodeG,newNode))
+    nodeG = np.hstack((nodeG,newNode)) # Weird ... order in nodeG is not preserved? does it matter? 
     connG = np.hstack((connG,newConns))
     # print(":: Successfully added node")
     
     return connG, nodeG, innov
   
-  def mutTurnConn(self, connG, nodeG, innov, gen, p = {"ann_turn_ratio": 0.1, 'sparsity_ratio': 0.8}): 
-    """Turn off/on 'non-essential' connections with probability"""
-    nodeMap = getNodeMap(nodeG, connG)
+  def mutSparsity(self, p, innov=None):
+    nodeG = np.copy(self.node)
+    connG = np.copy(self.conn)
+    nodeMap, _, _ = getNodeInfo(nodeG, connG)
     if nodeMap is False:
-        # print(":: Failed to get node order")
+        print(":: Failed to get node order")
         return connG, nodeG, innov
-    
-    conn = self.conn
-    node = self.node
-    
+
     # pick non-essential connections and pick ratio of them to randomize 'on/off' status 
-    start_hidden_node_idx = self.nInput + self.nBias + self.nOutput
-    non_essential_conn_ids = (conn[1,:] >= start_hidden_node_idx) & (conn[2, :] >= start_hidden_node_idx)
+    # hidden_bias_node_ids = nodeG[0, (nodeG[1,:]==3) | (nodeG[1,:]==4)]
+    hidden_bias_node_ids = nodeG[0, (nodeG[1,:]==3)] # only connection between hidden nodes
+    non_essential_conn_ids = np.isin(connG[1,:], hidden_bias_node_ids) & np.isin(connG[2,:], hidden_bias_node_ids)
 
     # Randomly select connections to modify based on change_ratio
     n_conns = np.sum(non_essential_conn_ids)
-    n_change = int(n_conns * p['ann_turn_ratio'])
+    n_change = int(n_conns * p['prob_mutTurnConn'])
     change_mask = np.random.choice(n_conns, size=n_change, replace=False)
 
     # Create array of 1s and 0s based on sparsity ratio
-    new_states = np.random.binomial(1, 1-p['sparsity_ratio'], size=n_change)
+    new_states = np.random.binomial(1, p['sparsity_ratio'], size=n_change)
 
     # Update selected connections
-    update_indices = np.where(non_essential_conn_ids)[0][change_mask]
-    conn[4, update_indices] = new_states
-    return conn, node, innov
+    update_indices = np.arange(connG.shape[1])[non_essential_conn_ids][change_mask]
+    connG[4, update_indices] = new_states
+    return connG, nodeG, innov 
     
 
   def mutAddConn(self, connG, nodeG, innov, gen, p = {"ann_absWCap": 2}):
@@ -427,7 +401,7 @@ class Ind():
     else:
       newConnId = innov[0,-1]+1 
 
-    nodeMap = getNodeMap(nodeG, connG)
+    nodeMap, _, _ = getNodeInfo(nodeG, connG)
     if nodeMap is False:
         # print(":: Failed to get node order")
         return connG, nodeG, innov
