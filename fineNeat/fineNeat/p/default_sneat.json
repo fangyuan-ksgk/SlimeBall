@@ -30,6 +30,6 @@
     "stop_topology_mutate_generations": 200,
     "ann_mutSigma": 0.1,
     "timeout": 50,
-    "prob_mutTurnConn": 0.1,
-    "sparsity_ratio": 0.5
+    "prob_mutTurnConn": 0.2,
+    "sparsity_ratio": 0.7
 }

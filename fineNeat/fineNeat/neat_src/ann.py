@@ -1,36 +1,72 @@
 import numpy as np
 
-def getMatOrder(nIns, nOuts, wMat): 
-    """ 
-    Get topological order of hidden nodes
-    """
-    connMat = np.copy(wMat[nIns:-nOuts,nIns:-nOuts])
-    connMat[connMat!=0] = 1
 
-    # Topological Sort of Hidden Nodes (according to connection matrix)
-    edge_in = np.sum(connMat,axis=0) # sum of edges ending with each node
-    Q = np.where(edge_in==0)[0]  # array of node ids with no incoming connections
-    for i in range(len(connMat)):
-        if (len(Q) == 0) or (i >= len(Q)):
-            Q = []
-            return False # Cycle found, can't sort
-        
-        edge_out = connMat[Q[i],:]
-        edge_in  = edge_in - edge_out # Remove previous layer nodes' conns from total
-        nextNodes = np.setdiff1d(np.where(edge_in==0)[0], Q) # Exclude previous layer nodes
-        Q = np.hstack((Q,nextNodes)) # Add next layer nodes to Q
-
-        if sum(edge_in) == 0:
-            break
-
-    Q += nIns+nOuts # Shifted local index due to reordering (input, bias, output, hidden) 
-
-    Q = np.r_[np.arange(nIns),              
-            Q,                              
-            np.arange(nIns,nIns+nOuts)] # ordered row index of wMat: input, bias, hidden, output
+def getMatOrder(nIns, nOuts, wMat):
+    """Get topological order ensuring inputs come first"""
+    n = len(wMat)
+    order = []
+    processed = set()
     
-    return Q
+    # Calculate in-degree for each node (excluding input nodes)
+    in_degree = np.zeros(n)
+    for j in range(nIns, n):
+        in_degree[j] = np.sum((wMat[:, j] != 0) & (~np.isnan(wMat[:, j])))
+    
+    # Start with input nodes
+    for i in range(nIns):
+        order.append(i)
+        processed.add(i)
+    
+    # Create priority queue of non-input nodes sorted by in-degree
+    candidate_nodes = sorted(
+        [(node, in_degree[node]) for node in range(nIns, n)],
+        key=lambda x: x[1]  # Sort by in-degree
+    )
+    
+    # Process nodes in order of increasing in-degree
+    idx = 0
+    while idx < len(candidate_nodes) and len(order) < n:
+        node, _ = candidate_nodes[idx]
+        
+        if node not in processed:
+            # Check if all incoming connections are from processed nodes
+            incoming = np.where((wMat[:, node] != 0) & (~np.isnan(wMat[:, node])))[0]
+            if all(i in processed for i in incoming):
+                order.append(node)
+                processed.add(node)
+                # Reset to start of queue as new nodes might now be processable
+                idx = 0
+                continue
+                
+        idx += 1
+    
+    # Check for cycles
+    if len(order) != n:
+        unprocessed = set(range(n)) - processed
+        raise ValueError(f"Cycle detected in neural network. Unprocessed nodes: {unprocessed}")
+        
+    return np.array(order)
+  
+  
+def calwMat(node, conn): 
+    conn[3,conn[4,:]==0] = np.nan
+    src  = conn[1,:].astype(int)
+    dest = conn[2,:].astype(int)
 
+    # wMat having order: input, bias, hidden, output -- important for propagation
+    seq2node = np.r_[node[0, node[1,:]==1], node[0, node[1,:]==4], node[0, node[1,:]==3], node[0, node[1,:]==2]]
+    seq2node = seq2node.astype(int)
+
+    src_mask = (src.reshape(-1, 1) == seq2node.reshape(1, -1)) # (n_conn, n_node)
+    dest_mask = (dest.reshape(-1, 1) == seq2node.reshape(1, -1))
+    src = (src_mask @ np.arange(len(seq2node)).reshape(-1, 1)).flatten()  # Convert to 1D
+    dest = (dest_mask @ np.arange(len(seq2node)).reshape(-1, 1)).flatten()  # Convert to 1D
+
+    # Create weight matrix according to reordered nodes
+    wMat = np.zeros((np.shape(node)[1],np.shape(node)[1]))
+    wMat[src,dest] = conn[3,:] # assign weight to the connection
+    
+    return wMat, seq2node
 
 def getMat(nodeG, connG): 
     """ 
@@ -41,51 +77,39 @@ def getMat(nodeG, connG):
     nIns = len(node[0,node[1,:] == 1]) + len(node[0,node[1,:] == 4])
     nOuts = len(node[0,node[1,:] == 2])
 
-    conn[3,conn[4,:]==0] = 0
-    src  = conn[1,:].astype(int)
-    dest = conn[2,:].astype(int)
-
-    # wMat having order: input, bias, hidden, output -- important for propagation
-    reordered_node_index = np.r_[node[0, node[1,:]==1], node[0, node[1,:]==4], node[0, node[1,:]==3], node[0, node[1,:]==2]]
-    reordered_node_index = reordered_node_index.astype(int)
+    wMat, seq2node = calwMat(node, conn)
     
-    src_mask = (src.reshape(-1, 1) == reordered_node_index.reshape(1, -1)) # (n_conn, n_node)
-    dest_mask = (dest.reshape(-1, 1) == reordered_node_index.reshape(1, -1))
-    src = (src_mask @ np.arange(len(reordered_node_index)).reshape(-1, 1)).flatten()  # Convert to 1D
-    dest = (dest_mask @ np.arange(len(reordered_node_index)).reshape(-1, 1)).flatten()  # Convert to 1D
-
-    # Create weight matrix according to reordered nodes
-    wMat = np.zeros((np.shape(node)[1],np.shape(node)[1]))
-    wMat[src,dest] = conn[3,:] # assign weight to the connection
+    order2seq = getMatOrder(nIns, nOuts, wMat)
     
-    wMat_row_order = getMatOrder(nIns, nOuts, wMat)
-    if wMat_row_order is False:
+    if order2seq is False:
         return False, False, False, False
     
-    node2seq = {node_id: node_seq for node_id, node_seq in zip(reordered_node_index, np.arange(len(reordered_node_index)))}
+    seq2order = {order2seq[seq_idx]: seq_idx for seq_idx in order2seq}
+    node2seq = {node_id: seq_idx for node_id, seq_idx in zip(seq2node, np.arange(len(seq2node)))}
     seq2node = {node2seq[node_id]: node_id for node_id in node2seq}
-    node2order = {order_idx: int(seq2node[wMat_row_order[order_idx]]) for order_idx in range(len(wMat_row_order))}
+    node2order = {node_idx: seq2order[node2seq[node_idx]] for node_idx in node2seq}
     return wMat, node2order, node2seq, seq2node
 
 
 def getLayer(wMat, node2seq, node2order, seq2node):
     order2node = {node2order[node_idx]: node_idx for node_idx in node2order}
     node2layer = {}
-    for _, node_idx in order2node.items():
+    for order_idx in range(len(order2node)): 
+        node_idx = order2node[order_idx]
         # Find all nodes that connect to this node
         row_idx = node2seq[node_idx]
-        input_nodes = np.where(wMat[:, row_idx] != 0)[0]
-        if len(input_nodes) == 0:
+        input_node_seq_ids = np.where((wMat[:, row_idx] != 0) & (~np.isnan(wMat[:, row_idx])))[0]
+        input_node_ids = [seq2node[int(i)] for i in input_node_seq_ids]
+        if len(input_node_ids) == 0:
             # Input nodes (no incoming connections)
             node2layer[node_idx] = 0
         else:
             # Node's layer is max layer of inputs + 1
-            input_node_layers = [node2layer[seq2node[int(i)]] for i in input_nodes]
+            input_node_layers = [node2layer[i] for i in input_node_ids]
             node2layer[node_idx] = np.max(input_node_layers) + 1
     return node2layer 
   
   
-
 
 
 def getNodeInfo(nodeG, connG): 
@@ -338,3 +362,79 @@ def obtainOutgoingConnections(connG, node_id):
     return exist
   else:
     return []
+  
+  
+  
+# Sanity Checks 
+
+def check_same_set(a, b): 
+    if a.shape != b.shape: 
+        return False 
+    return set(a.tolist()) == set(b.tolist())
+  
+  
+def sanity_check_node_func(nodeG, connG):
+    
+    wMat, node2order, node2seq, seq2node = getMat(nodeG, connG) # fixed an issue with node2order
+    node = np.copy(nodeG)
+    conn = np.copy(connG)
+    nIns = len(node[0,node[1,:] == 1]) + len(node[0,node[1,:] == 4])
+    nOuts = len(node[0,node[1,:] == 2])
+    wMat, seq2node = calwMat(node, conn)
+    order2seq = getMatOrder(nIns, nOuts, wMat)
+
+    # wMat passes the check
+    wMatSanityCheck(node,conn)
+        
+    # seq2order check
+    print("seq2order Sanity Check: ")
+    seq2order = {order2seq[seq_idx]: seq_idx for seq_idx in order2seq}
+    for seq_idx in range(len(seq2order)):
+        input_seq_ids = np.where((wMat[:, seq_idx] != 0) & (~np.isnan(wMat[:, seq_idx])))[0]
+        for input_seq_id in input_seq_ids.tolist():
+            if seq2order[input_seq_id] > seq2order[seq_idx]:
+                print(f":: Error: Input Node {input_seq_id} (order {seq2order[input_seq_id]}) "
+                    f"has higher order than Output Node {seq_idx} (order {seq2order[seq_idx]})")
+                raise ValueError("Ordering sanity check failed for seq2order: ", seq_idx)
+        print("  -- Ordering sanity check passed for seq_idx: ", seq_idx)
+        
+        
+    # node2order check 
+    print("node2order Sanity Check: ")
+    for node_idx in range(len(node2order)):
+        input_node_ids = conn[1, (conn[2,:]==node_idx) & (conn[4,:]==1)]
+        for input_node_id in input_node_ids.tolist(): 
+            if node2order[input_node_id] > node2order[node_idx]: 
+                print(f"Error: Input Node {input_node_id} (order {node2order[input_node_id]}) "
+                    f"has higher order than Output Node {node_idx} (order {node2order[node_idx]})")
+                raise ValueError("Ordering sanity check failed for node2order: ", node_idx)
+        print("  -- Ordering sanity check passed for node_idx: ", node_idx)
+        
+        
+    print("Sanity Check Passed")
+    
+    
+def wMatSanityCheck(node,conn):
+    wMat, seq2node = calwMat(node, conn)
+
+    connG, nodeG = np.copy(conn), np.copy(node)
+    node2seq = [seq2node[seq_idx] for seq_idx in range(len(seq2node))]
+    from fineNeat import check_same_set
+
+    print("wMat Sanity Check: ")
+    for node_idx in range(15): 
+        seq_idx = node2seq[node_idx]
+        to_ids_wMat = np.array([seq2node[int(i)] for i in np.where(wMat[seq_idx, :] != 0)[0]]) # inferred source node ids connected from node_idx | wMat 
+        to_ids_connG = connG[2, connG[1,:]==node_idx]
+        if not check_same_set(to_ids_wMat, to_ids_connG):
+            raise ValueError("wMat Matching connG in target ids: ", check_same_set(to_ids_wMat, to_ids_connG))
+        else: 
+            print("  -- wMat Matching connG in target ids for node_idx: ", node_idx)
+
+        from_ids_wMat = np.array([seq2node[int(i)] for i in np.where(wMat[:, seq_idx] != 0)[0]]) # inferred target node ids connected to node_idx | wMat 
+        from_ids_connG = connG[1, connG[2,:]==node_idx]
+        if not check_same_set(from_ids_wMat, from_ids_connG):
+            raise ValueError("wMat Matching connG in source ids: ", check_same_set(from_ids_wMat, from_ids_connG))
+        else: 
+            print("  -- wMat Matching connG in source ids for node_idx: ", node_idx)
+    print("wMat Sanity Check Passed")

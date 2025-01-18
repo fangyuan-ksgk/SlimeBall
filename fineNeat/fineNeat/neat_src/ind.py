@@ -144,7 +144,7 @@ class Ind():
         
     if seq_node_indices is not False: # no cyclic connections
       self.wMat = wMat
-      self.aVec = self.node[2,seq_node_indices]
+      self.aVec = np.hstack([self.node[2, self.node[0,:]==node_idx] for node_idx in seq_node_indices]).astype(int).tolist()
 
       wVec = self.wMat.flatten()
       wVec[np.isnan(wVec)] = 0
@@ -255,7 +255,7 @@ class Ind():
     innov_orig = np.copy(innov)
     
     # - Change connection status (Turn On/Off)
-    connG, nodeG, innov = self.mutSparsity(p, innov)
+    # connG, nodeG, innov = self.mutSparsity(p, innov)
          
     # - Weight mutation
     # [Canonical NEAT: 10% of weights are fully random...but seriously?]
@@ -280,12 +280,21 @@ class Ind():
     child = Ind(connG, nodeG)
     child.birth = gen
     child.gen = gen + 1
-    child_valid = child.express(timeout=p['timeout'] if 'timeout' in p else 10)
     
-    if child_valid: 
+    try: 
+      child_valid = child.express(timeout=p['timeout'] if 'timeout' in p else 10)
       return child, innov 
-    else:
-      return self, innov_orig 
+    except Exception as e: 
+      print(f":: Error in express: {e}")
+      return child, innov_orig
+    
+      # child_valid = False
+    
+    # if child_valid: 
+    #   return child, innov 
+    # else:
+    #   print(":: Failed to express child")
+    #   return self, innov_orig 
     
 
   def mutAddNode(self, connG, nodeG, innov, gen, p):
@@ -330,9 +339,6 @@ class Ind():
     # -- Effort is taken to minimize disruption from node addition:
     # The 'weight to' the node is set to 1, the 'weight from' is set to the
     # original  weight. With a near linear activation function the change in performance should be minimal.
-
-    
-    
     connTo    = connG[:,connSplit].copy()
     connTo[0] = newConnId
     connTo[2] = newNodeId
@@ -371,9 +377,8 @@ class Ind():
         return connG, nodeG, innov
 
     # pick non-essential connections and pick ratio of them to randomize 'on/off' status 
-    # hidden_bias_node_ids = nodeG[0, (nodeG[1,:]==3) | (nodeG[1,:]==4)]
-    hidden_bias_node_ids = nodeG[0, (nodeG[1,:]==3)] # only connection between hidden nodes
-    non_essential_conn_ids = np.isin(connG[1,:], hidden_bias_node_ids) & np.isin(connG[2,:], hidden_bias_node_ids)
+    bias_node_ids = nodeG[0, (nodeG[1,:]==4)]
+    non_essential_conn_ids = ~np.isin(connG[1,:], bias_node_ids)
 
     # Randomly select connections to modify based on change_ratio
     n_conns = np.sum(non_essential_conn_ids)
@@ -388,7 +393,6 @@ class Ind():
     connG[4, update_indices] = new_states
     return connG, nodeG, innov 
     
-
   def mutAddConn(self, connG, nodeG, innov, gen, p = {"ann_absWCap": 2}):
     """Add new connection to genome.
     To avoid creating recurrent connections all nodes are first sorted into
@@ -431,7 +435,8 @@ class Ind():
               innov = np.hstack((innov,newInnov[:,None])) # (5, ...)
             
             return connG, nodeG, innov
-          
+  
+    # print(":: Running out of connection to add")
     return connG, nodeG, innov
         
   def save(self, filename): 

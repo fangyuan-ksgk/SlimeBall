@@ -27,8 +27,6 @@ class Species():
     self.nOffspring = []
 
 def speciate(self):  
-  """Divides population into species and assigns each a number of offspring/
-  """
   # Readbility
   p = self.p # algorithm hyperparameters
   pop = self.pop # population
@@ -62,23 +60,6 @@ def speciate(self):
   self.species = species
 
 def assignSpecies(self, species, pop, p):
-  """Assigns each member of the population to a species.
-  Fills each species class with nearests members, assigns a species Id to each
-  individual for record keeping
-
-  Args:
-    species - (Species) - Previous generation's species
-      .seed       - (Ind) - center of species
-    pop     - [Ind]     - unassigned individuals
-    p       - (Dict)    - algorithm hyperparameters
-
-  Returns:
-    species - (Species) - This generation's species
-      .seed       - (Ind) - center of species
-      .members    - [Ind] - parent population
-    pop     - [Ind]     - individuals with species ID assigned
-
-  """
 
   # Get Previous Seeds
   if len(self.species) == 0:
@@ -112,21 +93,7 @@ def assignSpecies(self, species, pop, p):
   return species, pop
 
 def assignOffspring(self, species, pop, p):
-  """Assigns number of offspring to each species based on fitness sharing.
-  NOTE: Ordinal rather than the cardinal fitness of canonical NEAT is used.
-
-  Args:
-    species - (Species) - this generation's species
-      .members    - [Ind]   - individuals in species
-    pop     - [Ind]     - individuals with species assigned
-      .fitness    - (float) - performance on task (higher is better)
-    p       - (Dict)    - algorithm hyperparameters
-
-  Returns:
-    species - (Species) - This generation's species
-      .nOffspring - (int) - number of children to produce
-  """
-
+  
   nSpecies = len(species)
   if nSpecies == 1:
     species[0].offspring = p['popSize']
@@ -182,23 +149,43 @@ def assignOffspring(self, species, pop, p):
 
   return species
 
+from matplotlib import pyplot as plt 
+from ..vis.viewInd import viewInd, fig2img 
+from PIL import Image
+def printSpecies(self, species): 
+  print(" :: Total of species: ", len(species))
+  spec_nets = []
+  for spec_idx, spec in enumerate(species): 
+    print(" :: Species: ", spec_idx, " :: Offspring: ", spec.nOffspring)
+    spec.seed.express()
+    # Make individual visualizations larger
+    fig, _ = viewInd(spec.seed)
+    img = fig2img(fig)
+    # Resize the image to be larger
+    img = img.resize((800, 800))
+    spec_nets.append(img)
+    plt.close(fig)
+
+  # Calculate dimensions for the final image
+  n_cols = min(4, len(species))
+  n_rows = len(species) // n_cols + (1 if len(species) % n_cols > 0 else 0)
+  
+  # Create blank image for the grid
+  grid_width = n_cols * 800
+  grid_height = n_rows * 800
+  grid_img = Image.new('RGB', (grid_width, grid_height), 'white')
+  
+  # Paste images into grid
+  for i, img in enumerate(spec_nets):
+    x = (i % n_cols) * 800
+    y = (i // n_cols) * 800
+    grid_img.paste(img, (x, y))
+    
+  return grid_img
+      
+
 def compatDist(self, ref, ind):
-  """Calculate 'compatiblity distance' between to genomes
-
-  Args:
-    ref - (np_array) -  reference genome connection genes
-          [5 X nUniqueGenes]
-          [0,:] == Innovation Number (unique Id)
-          [3,:] == Weight Value
-    ind - (np_array) -  genome being compared
-          [5 X nUniqueGenes]
-          [0,:] == Innovation Number (unique Id)
-          [3,:] == Weight Value
-
-  Returns:
-    dist - (float) - compatibility distance between genomes
-  """
-
+  
   # Find matching genes
   IA, IB = quickINTersect(ind[0,:].astype(int),ref[0,:].astype(int))          
   

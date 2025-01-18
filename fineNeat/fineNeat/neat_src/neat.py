@@ -39,7 +39,7 @@ class Neat():
   ''' Subfunctions '''
   from ._variation import evolvePop, recombine
   from ._speciate  import Species, speciate, compatDist,\
-                          assignSpecies, assignOffspring  
+                          assignSpecies, assignOffspring, printSpecies
 
   def ask(self):
     """Returns newly evolved population
@@ -47,7 +47,7 @@ class Neat():
     if len(self.pop) == 0:
       self.initPop()      # Initialize population
     else:
-      self.probMoo()      # Rank population according to objectivess
+      self.rankPop()      
       self.speciate()     # Divide population into species
       self.evolvePop()    # Create child population 
 
@@ -118,7 +118,7 @@ class Neat():
     self.pop = pop
     self.innov = innov
 
-  def probMoo(self):
+  def rankPop(self):
     """Rank population according to Pareto dominance.
     """
     # Compile objectives
