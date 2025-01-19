@@ -6,6 +6,7 @@ from slimevolleygym.mlp import Model
 from slimevolleygym import multiagent_rollout as rollout
 from fineNeat import loadHyp, load_task, updateHyp, Ind, NeatPolicy, viewInd, fig2img 
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 
 # Settings
@@ -41,7 +42,7 @@ def mutate(ind, p):
 
 
 game = games['slimevolleylite']
-population = [Ind.from_shapes([(game.input_size, 3), (3, game.output_size)]) for _ in range(population_size)]
+population = [Ind.from_shapes([(game.input_size, 10), (10, game.output_size)]) for _ in range(population_size)]
 winning_streak = [0] * population_size # store the number of wins for this agent (including mutated ones)
 
 # create the gym environment, and seed it
@@ -53,7 +54,7 @@ np.random.seed(random_seed)
 history = []
 
 
-for tournament in range(1, total_tournaments+1):
+for tournament in tqdm(range(1, total_tournaments+1)):
   
   # Random Pick Two Agents from Population
   left_idx, right_idx = np.random.choice(population_size, 2, replace=False)
@@ -87,7 +88,7 @@ for tournament in range(1, total_tournaments+1):
       record = winning_streak[record_holder]
       population[record_holder].save(model_filename)
 
-  if (tournament ) % 100 == 0: # print best solution
+  if (tournament ) % 1000 == 0: # print best solution
     record_holder = np.argmax(winning_streak)
     fig, _ = viewInd(population[record_holder])
     plt.close(fig)

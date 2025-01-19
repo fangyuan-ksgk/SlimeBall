@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 
 # Settings
 random_seed = 612
-population_size = 256
+population_size = 128
 total_tournaments = 600000
 save_freq = 1000
 
@@ -29,8 +29,8 @@ hyp = loadHyp(pFileName=hyp_default, load_task=load_task)
 updateHyp(hyp,load_task,hyp_adjust)
 
 # Log results
-logdir = "../runs/sneat"
-visdir = "../runs/sneat/vis"
+logdir = "../runs/sneat_sp"
+visdir = "../runs/sneat_sp/vis"
 if not os.path.exists(logdir):
   os.makedirs(logdir)
 if not os.path.exists(visdir):
@@ -70,9 +70,8 @@ def eval(policy_left, policy_right, selfplay=False):
   else: 
     raw_score_right, time_right = rollout(env, policy_right, policy_base)
     raw_score_left, time_left = rollout(env, policy_left, policy_base)
-  score_right = raw_score_right + (1000 - time_right if raw_score_right > 0 else time_right) / 1000
-  score_left = raw_score_left + (1000 - time_left if raw_score_left > 0 else time_left) / 1000
-  return score_right, score_left, (time_right + time_left) / 2
+  
+  return raw_score_right, raw_score_left, (time_right + time_left) / 2
 
 history = []
 
@@ -87,8 +86,8 @@ for tournament in tqdm(range(1, total_tournaments+1)):
   policy_left = NeatPolicy(population[left_idx], game)
 
   # Evaluate two agents
-  use_selfplay = tournament%3==0
-  score_right, score_left, length = eval(policy_left, policy_right, selfplay=use_selfplay)
+  # use_selfplay = tournament%3==0
+  score_right, score_left, length = eval(policy_left, policy_right, selfplay=True)
   history.append(int(length))
   
   # if score is positive, it means policy_right won.

@@ -123,7 +123,7 @@ if __name__=="__main__":
     "ga": "training_scripts/ga_selfplay/ga_00135000.json",
     "random": None,
     "neat": "runs/neat/volley9950_best.json",
-    "sneat": "runs/sneat_sp/sneat_00351000.json",
+    "sneat": "runs/sneat/sneat_00500000.json",
     "sneat_tune": "runs/sneat_tune/sneat_00068000.json"
   }
 
