@@ -43,7 +43,7 @@ def speciate(self):
     if p['spec_thresh'] < p['spec_threshMin']: # not too small threshold, otherwise species are the same
       p['spec_thresh'] = p['spec_threshMin']
 
-    species, pop = self.assignSpecies  (species, pop, p)
+    species, pop = self.assignSpecies  (pop, p)
     species      = self.assignOffspring(species, pop, p)
 
   elif p['alg_speciate'] == "none": 
@@ -59,18 +59,13 @@ def speciate(self):
   self.pop = pop
   self.species = species
 
-def assignSpecies(self, species, pop, p):
-
-  # Get Previous Seeds
-  if len(self.species) == 0:
-    # Create new species if none exist
-    species = [Species(pop[0])]
-    species[0].nOffspring = p['popSize']
-    iSpec = 0
-  else:
-    # Remove existing members
-    for iSpec in range(len(species)):
-      species[iSpec].members = []
+def assignSpecies(self, pop, p):
+  """ 
+  Does this decreate number of species if threshold is reached ?? 
+  """
+  
+  species = [Species(pop[0])]
+  species[0].nOffspring = p['popSize']
 
   # Assign members of population to first species within compat distance
   for i in range(len(pop)):
@@ -152,33 +147,44 @@ def assignOffspring(self, species, pop, p):
 from matplotlib import pyplot as plt 
 from ..vis.viewInd import viewInd, fig2img 
 from PIL import Image
-def printSpecies(self, species): 
-  print(" :: Total of species: ", len(species))
+def printSpecies(self, species, mute: bool = False): 
+  if not mute: 
+    print(" :: Total of species: ", len(species))
   spec_nets = []
   for spec_idx, spec in enumerate(species): 
-    print(" :: Species: ", spec_idx, " :: Offspring: ", spec.nOffspring)
+    if not mute: 
+      print(" :: Species: ", spec_idx, " :: Offspring: ", spec.nOffspring)
     spec.seed.express()
-    # Make individual visualizations larger
-    fig, _ = viewInd(spec.seed)
+    # Make individual visualizations larger with 4:3 ratio
+    fig, ax = viewInd(spec.seed)
+    # Remove title
+    ax.set_title('')
+    # Add species info as text with larger font size
+    plt.text(0.45, 0.98, f'Species {spec_idx}\nOffspring: {spec.nOffspring}', 
+             transform=ax.transAxes, 
+             bbox=dict(facecolor='white', alpha=0.8),
+             verticalalignment='top',
+             fontsize=16,  # Increased font size
+             fontweight='bold')  # Made text bold for better visibility
     img = fig2img(fig)
-    # Resize the image to be larger
-    img = img.resize((800, 800))
+    # Resize the image to 800x600 (4:3 ratio)
+    img = img.resize((800, 600))
     spec_nets.append(img)
     plt.close(fig)
 
   # Calculate dimensions for the final image
-  n_cols = min(4, len(species))
+  n_cols = min(3, len(species))
   n_rows = len(species) // n_cols + (1 if len(species) % n_cols > 0 else 0)
   
   # Create blank image for the grid
   grid_width = n_cols * 800
-  grid_height = n_rows * 800
+  grid_height = n_rows * 600
   grid_img = Image.new('RGB', (grid_width, grid_height), 'white')
   
   # Paste images into grid
   for i, img in enumerate(spec_nets):
     x = (i % n_cols) * 800
-    y = (i // n_cols) * 800
+    y = (i // n_cols) * 600
     grid_img.paste(img, (x, y))
     
   return grid_img

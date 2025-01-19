@@ -43,7 +43,8 @@ def getMatOrder(nIns, nOuts, wMat):
     # Check for cycles
     if len(order) != n:
         unprocessed = set(range(n)) - processed
-        raise ValueError(f"Cycle detected in neural network. Unprocessed nodes: {unprocessed}")
+        print(f" :: Cycle detected in neural network. Unprocessed nodes: {unprocessed}")
+        return False
         
     return np.array(order)
   
