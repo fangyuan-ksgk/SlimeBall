@@ -255,7 +255,7 @@ class Ind():
     innov_orig = np.copy(innov)
     
     # - Change connection status (Turn On/Off)
-    # connG, nodeG, innov = self.mutSparsity(p, innov)
+    connG, nodeG, innov = self.mutSparsity(p, innov)
          
     # - Weight mutation
     # [Canonical NEAT: 10% of weights are fully random...but seriously?]
@@ -281,20 +281,13 @@ class Ind():
     child.birth = gen
     child.gen = gen + 1
     
-    try: 
-      child_valid = child.express(timeout=p['timeout'] if 'timeout' in p else 10)
+    child_valid = child.express(timeout=p['timeout'] if 'timeout' in p else 10)
+    
+    if child_valid: 
       return child, innov 
-    except Exception as e: 
-      print(f":: Error in express: {e}")
-      return child, innov_orig
-    
-      # child_valid = False
-    
-    # if child_valid: 
-    #   return child, innov 
-    # else:
-    #   print(":: Failed to express child")
-    #   return self, innov_orig 
+    else:
+      print(":: Failed to express child")
+      return self, innov_orig 
     
 
   def mutAddNode(self, connG, nodeG, innov, gen, p):
@@ -343,16 +336,19 @@ class Ind():
     connTo[0] = newConnId
     connTo[2] = newNodeId
     connTo[3] = 1 # weight set to 1
+    connTo[4] = 1
       
     connFrom    = connG[:,connSplit].copy()
     connFrom[0] = newConnId + 1
     connFrom[1] = newNodeId
     connFrom[3] = connG[3,connSplit] # weight set to previous weight value   
+    connFrom[4] = 1
         
     newConns = np.vstack((connTo,connFrom)).T
         
     # Disable original connection :: aha I see, so it's still here but disabled
-    connG[4,connSplit] = 0
+    # connG[4,connSplit] = 1
+    connG[3,connSplit] = 0.0
         
     # Record innovations
     if innov is not None:
@@ -377,8 +373,8 @@ class Ind():
         return connG, nodeG, innov
 
     # pick non-essential connections and pick ratio of them to randomize 'on/off' status 
-    bias_node_ids = nodeG[0, (nodeG[1,:]==4)]
-    non_essential_conn_ids = ~np.isin(connG[1,:], bias_node_ids)
+    bias_node_ids = nodeG[0, (nodeG[1,:]==4) | (nodeG[1,:]==1)]
+    non_essential_conn_ids = ~np.isin(connG[1,:], bias_node_ids) & ~np.isin(connG[2,:], bias_node_ids)
 
     # Randomly select connections to modify based on change_ratio
     n_conns = np.sum(non_essential_conn_ids)

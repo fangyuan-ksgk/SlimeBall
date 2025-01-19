@@ -117,7 +117,7 @@ def getNodeInfo(nodeG, connG):
     if wMat is False:
         return False, False, False
     node2layer = getLayer(wMat, node2seq, node2order, seq2node)
-    nodemap = {node_idx: (node2layer[node_idx], node2order[node_idx]) for node_idx in nodeG[0]}
+    nodemap = {int(node_idx): (node2layer[node_idx], node2order[node_idx]) for node_idx in nodeG[0]}
     seq_node_indices = [seq2node[seq_idx] for seq_idx in range(len(seq2node))]
     return nodemap, seq_node_indices, wMat
 
@@ -438,3 +438,29 @@ def wMatSanityCheck(node,conn):
         else: 
             print("  -- wMat Matching connG in source ids for node_idx: ", node_idx)
     print("wMat Sanity Check Passed")
+
+
+def check_sparse_issue(node, conn):
+    nodeG, connG = np.copy(node), np.copy(conn)
+    input_node_ids = nodeG[0, nodeG[1,:] < 2]
+
+    # Check connections FROM input/bias nodes that are disabled
+    from_input_issues = connG[:, np.logical_and(np.isin(connG[1,:], input_node_ids), connG[4,:] == 0)]
+    # Check connections TO input/bias nodes that are disabled
+    to_input_issues = connG[:, np.logical_and(np.isin(connG[2,:], input_node_ids), connG[4,:] == 0)]
+
+    issue_free = len(from_input_issues[0]) == 0 and len(to_input_issues[0]) == 0
+
+    if not issue_free:
+        print("Issues Found:")
+        if len(from_input_issues[0]) > 0:
+            print("\nDisabled connections FROM input/bias nodes:")
+            for conn in from_input_issues.T:
+                print(f"Connection {int(conn[0])}: From node {int(conn[1])} to node {int(conn[2])} is disabled")
+        
+        if len(to_input_issues[0]) > 0:
+            print("\nDisabled connections TO input/bias nodes:")
+            for conn in to_input_issues.T:
+                print(f"Connection {int(conn[0])}: From node {int(conn[1])} to node {int(conn[2])} is disabled")
+                
+    return issue_free
