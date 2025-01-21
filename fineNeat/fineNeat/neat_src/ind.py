@@ -181,8 +181,9 @@ class Ind():
     """  
     if mate is not None: # crossover if mate else mutation
       child = self.crossover(mate)
+      child.express()
     else:
-      child = Ind(self.conn, self.node)
+      child = self 
 
     child, innov = child.mutate(p,innov,gen)
     return child, innov

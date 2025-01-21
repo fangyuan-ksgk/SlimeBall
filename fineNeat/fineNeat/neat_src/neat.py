@@ -105,9 +105,12 @@ class Neat():
         newInd = Ind(conn, node)
         newInd.conn[3,:] = (2*(np.random.rand(1,nConn)-0.5))*p['ann_absWCap'] # [-w_cap, w_cap] uniform random weight
         newInd.conn[4,:] = np.random.rand(1,nConn) < p['prob_initEnable'] # enable or disable
-        newInd.express() # interesting to see what goes in here
+        # newInd.express() # interesting to see what goes in here
         newInd.birth = 0
         pop.append(copy.deepcopy(newInd))  
+        
+    for ind in pop:
+        ind.express()
         
     # - Create Innovation Record -
     innov = np.zeros([5,nConn])

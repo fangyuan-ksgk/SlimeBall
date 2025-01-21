@@ -4,7 +4,7 @@ import gym
 from slimevolleygym.mlp import games as games
 from slimevolleygym.mlp import Model
 from slimevolleygym import multiagent_rollout as rollout
-from fineNeat import loadHyp, load_task, updateHyp, Ind, NeatPolicy, viewInd, fig2img 
+from fineNeat import loadHyp, load_task, updateHyp, Ind, NeatPolicy, draw_img
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
@@ -89,9 +89,7 @@ for tournament in tqdm(range(1, total_tournaments+1)):
 
   if (tournament ) % 1000 == 0: # print best solution
     record_holder = np.argmax(winning_streak)
-    fig, _ = viewInd(population[record_holder])
-    plt.close(fig)
-    img = fig2img(fig)
+    img = draw_img(population[record_holder])
     img.save(os.path.join(visdir, "sneat_"+str(tournament).zfill(8)+".png"))
     
     record = winning_streak[record_holder]
