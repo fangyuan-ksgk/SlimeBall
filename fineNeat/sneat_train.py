@@ -25,8 +25,8 @@ hyp = loadHyp(pFileName=hyp_default, load_task=load_task)
 updateHyp(hyp,load_task,hyp_adjust)
 
 # Log results
-logdir = "../runs/sneat_sp"
-visdir = "../runs/sneat_sp/vis"
+logdir = "../runs/sneat_sp_cons"
+visdir = "../runs/sneat_sp_cons/vis"
 if not os.path.exists(logdir):
   os.makedirs(logdir)
 if not os.path.exists(visdir):
@@ -42,7 +42,7 @@ def mutate(ind, p):
 
 
 game = games['slimevolleylite']
-population = [Ind.from_shapes([(game.input_size, 5), (5, 5), (5, game.output_size)]) for _ in range(population_size)]
+population = [Ind.from_shapes([(game.input_size, 3), (3, game.output_size)]) for _ in range(population_size)]
 winning_streak = [0] * population_size # store the number of wins for this agent (including mutated ones)
 
 # create the gym environment, and seed it

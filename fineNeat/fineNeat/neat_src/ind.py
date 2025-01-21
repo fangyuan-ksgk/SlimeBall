@@ -246,6 +246,9 @@ class Ind():
   def mutate(self,p,innov=None,gen=None, mute_top_change=True):
     """
     Randomly alter topology and weights of individual
+    - include topology cap :: cap layer & cap active connection 
+    - set a desired connection number, we adapt the 'sparsity_ratio = min(1, desired_conn / total_conn)
+    - linear reduction of mutConn & mutNode, proportional to 1 - (total_layer / cap_layer) * (active_conn / cap_conn)
     """
     # Readability
     nConn = np.shape(self.conn)[1]
@@ -255,6 +258,7 @@ class Ind():
     innov_orig = np.copy(innov)
     
     # - Change connection status (Turn On/Off)
+    p['sparsity_ratio'] = min(1, p['desired_conn'] / connG[4,:].sum())
     connG, nodeG, innov = self.mutSparsity(p, innov)
          
     # - Weight mutation
@@ -267,17 +271,18 @@ class Ind():
     connG[3, (connG[3,:] >  p['ann_absWCap'])] =  p['ann_absWCap']
     connG[3, (connG[3,:] < -p['ann_absWCap'])] = -p['ann_absWCap']
     
-    # Cap on number of layers & connections
+    # Adaptive Topology Mutation Rate
     active_conn = connG[4,:].sum()
-    if active_conn >= p['cap_conn']:
-      top_mutate = False
-    else:
-      top_mutate = True
+    total_layer = self.max_layer
+    discount_prob = 1 - min((total_layer / p['cap_layer']) * (active_conn / p['cap_conn']), 1)
     
-    if (np.random.rand() < p['prob_addNode'] * top_mutate) and np.any(connG[4,:]==1):
+    prob_mutConn = p['prob_addConn'] * discount_prob
+    prob_mutNode = p['prob_addNode'] * discount_prob
+    
+    if (np.random.rand() < prob_mutNode) and np.any(connG[4,:]==1):
       connG, nodeG, innov = self.mutAddNode(connG, nodeG, innov, gen, p)
     
-    if (np.random.rand() < p['prob_addConn'] * top_mutate):
+    if (np.random.rand() < prob_mutConn):
       connG, nodeG, innov = self.mutAddConn(connG, nodeG, innov, gen, p) 
     
     child = Ind(connG, nodeG)

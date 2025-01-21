@@ -100,8 +100,7 @@ def visualize_dag(wMat, seq2order, seq2node, seq2layer, nIns, nOuts, figsize=(10
     
     # Draw edges with width proportional to weight
     edges = G.edges()
-    weights = [abs(G[u][v]['weight']) for u, v in edges]
-    max_weight = max(weights)
+    weights = [G[u][v]['weight'] for u, v in edges]
     
     # Normalize weights to [0,1] range for alpha
     alphas = np.abs(weights) / np.max(np.abs(weights) + 0.1)
@@ -158,3 +157,16 @@ def fig2img(fig):
     fig.savefig(buf, format='png', bbox_inches='tight', pad_inches=0)
     buf.seek(0)
     return Image.open(buf)
+
+
+def draw_img(ind): 
+    fig, ax = viewInd(ind)
+    
+    ax.text(0.7, 0.9, f"Active Connections: {ind.nConns()}\nNumber of Layers: {ind.max_layer}",
+        bbox=dict(facecolor='white', edgecolor='black', pad=10),
+        horizontalalignment='center', fontsize=16,
+        transform=ax.transAxes)
+    
+    img = fig2img(fig)
+    plt.close(fig)
+    return img

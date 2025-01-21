@@ -126,7 +126,7 @@ if __name__=="__main__":
     "neat": "runs/neat/volley140_best.json",
     "sneat": "runs/sneat/sneat_00500000.json",
     "sneat_tune": "runs/sneat_tune/sneat_00068000.json",
-    "sneat_sp": "runs/sneat_sp/sneat_00015000.json"
+    "sneat_sp": "runs/sneat_sp/sneat_00150000.json"
   }
 
   MODEL = {
