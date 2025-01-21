@@ -12,14 +12,14 @@ from tqdm import tqdm
 # Settings
 random_seed = 612
 population_size = 128
-total_tournaments = 5000
+total_tournaments = 15000
 save_freq = 1000
 
 # Environment
-
 # Hyperparameters
-hyp_default = 'p/default_sneat.json'
-hyp_adjust = "p/volley.json"
+hyp_default = 'fineNeat/p/default_sneat.json'
+# hyp_adjust = 'fineNeat/p/volley_default.json'
+hyp_adjust = 'fineNeat/p/volley_sparse.json'
 
 hyp = loadHyp(pFileName=hyp_default, load_task=load_task)
 updateHyp(hyp,load_task,hyp_adjust)
@@ -52,7 +52,6 @@ np.random.seed(random_seed)
 
 
 history = []
-
 
 for tournament in tqdm(range(1, total_tournaments+1)):
   

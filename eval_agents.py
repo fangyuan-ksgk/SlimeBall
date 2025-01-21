@@ -103,7 +103,8 @@ def evaluate_multiagent(env, policy0, policy1, render_mode=False, n_trials=1000,
 
 if __name__=="__main__":
 
-  APPROVED_MODELS = ["baseline", "ppo", "ga", "jacobian", "cma", "random", "neat", "sneat", "sneat_tune"]
+  APPROVED_MODELS = ["baseline", "ppo", "ga", "jacobian", "cma", "random", "neat", "sneat", "sneat_tune",
+                     "sneat_sp"]
 
   def checkchoice(choice):
     choice = choice.lower()
@@ -122,9 +123,10 @@ if __name__=="__main__":
     "jacobian": "training_scripts/ga_jacobian_estimate2/jacobian_00241000.json",
     "ga": "training_scripts/ga_selfplay/ga_00135000.json",
     "random": None,
-    "neat": "runs/neat/volley9950_best.json",
+    "neat": "runs/neat/volley140_best.json",
     "sneat": "runs/sneat/sneat_00500000.json",
-    "sneat_tune": "runs/sneat_tune/sneat_00068000.json"
+    "sneat_tune": "runs/sneat_tune/sneat_00068000.json",
+    "sneat_sp": "runs/sneat_sp/sneat_00005000.json"
   }
 
   MODEL = {
@@ -136,7 +138,8 @@ if __name__=="__main__":
     "neat": NEATPolicy,
     "jacobian": makeSlimePolicyLite,
     "sneat": NEATPolicy,
-    "sneat_tune": NEATPolicy
+    "sneat_tune": NEATPolicy,
+    "sneat_sp": NEATPolicy
   }
 
   parser = argparse.ArgumentParser(description='Evaluate pre-trained agents against each other.')

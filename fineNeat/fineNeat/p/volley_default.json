@@ -1,0 +1,12 @@
+{
+    "task":"slimevolley",
+    "maxGen":10000,
+    "prob_mutConn": 1.0,
+    "ann_mutSigma": 0.1, 
+    "ann_absWCap": 100.0,
+    "prob_addNode": 0.2,
+    "prob_addConn": 0.2,
+    "prob_mutTurnConn": 0.0,
+    "sparsity_ratio": 1.0,
+    "cap_conn": 400
+}

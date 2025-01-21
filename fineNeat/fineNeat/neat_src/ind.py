@@ -267,9 +267,12 @@ class Ind():
     connG[3, (connG[3,:] >  p['ann_absWCap'])] =  p['ann_absWCap']
     connG[3, (connG[3,:] < -p['ann_absWCap'])] = -p['ann_absWCap']
     
-    gen = gen if gen is not None else self.gen if self.gen is not None else 0
-    top_mutate = gen <= p['stop_topology_mutate_generations'] if 'stop_topology_mutate_generations' in p else 200
-    top_mutate = top_mutate or mute_top_change
+    # Cap on number of layers & connections
+    active_conn = connG[4,:].sum()
+    if active_conn >= p['cap_conn']:
+      top_mutate = False
+    else:
+      top_mutate = True
     
     if (np.random.rand() < p['prob_addNode'] * top_mutate) and np.any(connG[4,:]==1):
       connG, nodeG, innov = self.mutAddNode(connG, nodeG, innov, gen, p)
@@ -279,7 +282,6 @@ class Ind():
     
     child = Ind(connG, nodeG)
     child.birth = gen
-    child.gen = gen + 1
     
     child_valid = child.express(timeout=p['timeout'] if 'timeout' in p else 10)
     

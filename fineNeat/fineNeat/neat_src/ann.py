@@ -336,6 +336,7 @@ class NeatPolicy:
         if self.indiv.aVec is None or self.indiv.aVec is not None and not isinstance(self.indiv.aVec, np.ndarray): 
             self.indiv.express()
         self.indiv.aVec[-1] = 1
+        self.num_active_conn = self.indiv.conn[4,:].sum()
     
     def predict(self, input): 
         return act(self.indiv.wMat, self.indiv.aVec, self.game.input_size, self.game.output_size, input)[0]
