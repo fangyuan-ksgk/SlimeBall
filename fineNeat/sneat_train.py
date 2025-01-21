@@ -42,7 +42,7 @@ def mutate(ind, p):
 
 
 game = games['slimevolleylite']
-population = [Ind.from_shapes([(game.input_size, 10), (10, game.output_size)]) for _ in range(population_size)]
+population = [Ind.from_shapes([(game.input_size, 5), (5, 5), (5, game.output_size)]) for _ in range(population_size)]
 winning_streak = [0] * population_size # store the number of wins for this agent (including mutated ones)
 
 # create the gym environment, and seed it
