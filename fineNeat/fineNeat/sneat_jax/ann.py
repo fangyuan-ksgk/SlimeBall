@@ -2,245 +2,135 @@ import jax
 import jax.numpy as jnp
 
 
-# -- ANN Ordering -------------------------------------------------------- -- #
-
-def getNodeOrder(nodeG,connG):
-    """Builds connection matrix from genome through topological sorting.
-
-    Args:
-    nodeG - (np_array) - node genes
-            [3 X nUniqueGenes]
-            [0,:] == Node Id
-            [1,:] == Type (1=input, 2=output 3=hidden 4=bias)
-            [2,:] == Activation function (as int)
-
-    connG - (np_array) - connection genes
-            [5 X nUniqueGenes] 
-            [0,:] == Innovation Number (unique Id)
-            [1,:] == Source Node Id
-            [2,:] == Destination Node Id
-            [3,:] == Weight Value
-            [4,:] == Enabled?  
-
-    Returns:
-    Q    - [int]      - sorted node order as indices
-    wMat - (np_array) - ordered weight matrix
-            [N X N]
-
-    OR
-
-    False, False      - if cycle is found
-
-    Todo:
-    * setdiff1d is slow, as all numbers are positive ints is there a
-        better way to do with indexing tricks (as in quickINTersect)?
-    """
-    node = jnp.copy(nodeG)
-    conn = jnp.copy(connG)
+def getMatOrder(nIns, nOuts, wMat):
+    """Get topological order ensuring inputs come first"""
+    n = len(wMat)
+    order = []
+    processed = set()
     
+    # Calculate in-degree for each node (excluding input nodes)
+    in_degree = jnp.zeros(n)
+    for j in range(nIns, n):
+        in_degree = in_degree.at[j].set(
+            jnp.sum((wMat[:, j] != 0) & (~jnp.isnan(wMat[:, j])))
+        )
+    
+    # Start with input nodes
+    for i in range(nIns):
+        order.append(i)
+        processed.add(i)
+    
+    # Create priority queue of non-input nodes sorted by in-degree
+    candidate_nodes = sorted(
+        [(node, in_degree[node].item()) for node in range(nIns, n)],
+        key=lambda x: x[1]  # Sort by in-degree
+    )
+    
+    # Process nodes in order of increasing in-degree
+    idx = 0
+    while idx < len(candidate_nodes) and len(order) < n:
+        node, _ = candidate_nodes[idx]
+        
+        if node not in processed:
+            # Check if all incoming connections are from processed nodes
+            incoming = jnp.where((wMat[:, node] != 0) & (~jnp.isnan(wMat[:, node])))[0]
+            if all(int(i) in processed for i in incoming):
+                order.append(node)
+                processed.add(node)
+                # Reset to start of queue as new nodes might now be processable
+                idx = 0
+                continue
+                
+        idx += 1
+    
+    # Check for cycles
+    if len(order) != n:
+        unprocessed = set(range(n)) - processed
+        print(f" :: Cycle detected in neural network. Unprocessed nodes: {unprocessed}")
+        return False
+        
+    return jnp.array(order)
+  
+  
+  
+def calwMat(node, conn): 
+    # Set nan values for disabled connections
+    conn = conn.at[3, conn[4,:]==0].set(jnp.nan)
+    src  = conn[1,:].astype(jnp.int32)
+    dest = conn[2,:].astype(jnp.int32)
+
+    # wMat having order: input, bias, hidden, output -- important for propagation
+    seq2node = jnp.concatenate([
+        node[0, node[1,:]==1], 
+        node[0, node[1,:]==4], 
+        node[0, node[1,:]==3], 
+        node[0, node[1,:]==2]
+    ])
+    seq2node = seq2node.astype(jnp.int32)
+
+    src_mask = (src.reshape(-1, 1) == seq2node.reshape(1, -1))  # (n_conn, n_node)
+    dest_mask = (dest.reshape(-1, 1) == seq2node.reshape(1, -1))
+    src = (src_mask @ jnp.arange(len(seq2node)).reshape(-1, 1)).flatten()  # Convert to 1D
+    dest = (dest_mask @ jnp.arange(len(seq2node)).reshape(-1, 1)).flatten()  # Convert to 1D
+
+    # Create weight matrix according to reordered nodes
+    wMat = jnp.zeros((node.shape[1], node.shape[1]))
+    wMat = wMat.at[src, dest].set(conn[3,:])  # assign weight to the connection
+    
+    return wMat, seq2node
+  
+  
+  
+def getMat(nodeG, connG): 
+    """ 
+    Get Connection Weight Matrix for reordered Nodes
+    """
+    node = jnp.array(nodeG)
+    conn = jnp.array(connG)
     nIns = len(node[0,node[1,:] == 1]) + len(node[0,node[1,:] == 4])
     nOuts = len(node[0,node[1,:] == 2])
 
-    # Create connection and initial weight matrices
-    conn = conn.at[3, conn[4,:]==0].set(jnp.nan)  # JAX immutable array update
-    src = conn[1,:].astype(jnp.int32)
-    dest = conn[2,:].astype(jnp.int32)
-
-    # Reordering node
-    reordered_index = jnp.concatenate([
-        node[0, node[1,:] == 1],
-        node[0, node[1,:] == 4],
-        node[0, node[1,:] == 3],
-        node[0, node[1,:] == 2]
-    ])
-
-    # Get Edge on reordered nodes 
-    src_mask = (src.reshape(-1, 1) == reordered_index.reshape(1, -1))
-    dest_mask = (dest.reshape(-1, 1) == reordered_index.reshape(1, -1))
-    src = (src_mask @ jnp.arange(len(reordered_index)).reshape(-1, 1)).flatten()
-    dest = (dest_mask @ jnp.arange(len(reordered_index)).reshape(-1, 1)).flatten()
-
-    # Create weight matrix
-    wMat = jnp.zeros((node.shape[1], node.shape[1]))
-    wMat = wMat.at[src, dest].set(conn[3,:])
-
-    # Get connection matrix
-    connMat = wMat[nIns+nOuts:, nIns+nOuts:]
-    connMat = jnp.where(connMat != 0, 1, 0) 
-
-    # Same till here
-
-    # Topological Sort
-    edge_in = jnp.sum(connMat, axis=0)
-    Q = jnp.where(edge_in == 0)[0]
-    for i in range(len(connMat)):
-        if (len(Q) == 0) or (i >= len(Q)):
-            Q = []
-            print("Cycle found, can't sort") 
-            return False, False   
-        
-        edge_out = connMat[Q[i],:]
-        edge_in = edge_in - edge_out  # Remove previous layer nodes' conns from total
-        
-        # Convert numpy operations to JAX
-        zero_indices = jnp.where(edge_in == 0)[0]
-        nextNodes = jnp.setdiff1d(zero_indices, Q)  # Exclude previous layer nodes
-        Q = jnp.concatenate([Q, nextNodes])  # JAX uses concatenate instead of hstack
-        
-        if jnp.sum(edge_in) == 0:
-            break
-
-    # Add inputs and outputs back
-    Q = Q + nIns + nOuts
-    Q = jnp.concatenate([
-        jnp.arange(nIns),
-        Q,
-        jnp.arange(nIns, nIns+nOuts)
-    ])
-
-    return Q, wMat    
-
-
-def getLayer(wMat, timeout=1000):
-    """Get layer of each node in weight matrix using a more efficient approach.
-    Instead of iterating until convergence, we can use a graph traversal approach.
-
-    Args:
-    wMat    - (np_array) - ordered weight matrix [N X N]
-    timeout - (int)      - maximum number of iterations before timing out
-
-    Returns:
-    layer   - [int]      - layer # of each node
-                or None if timeout is reached
-    """
-
-    wMat = jnp.where(jnp.isnan(wMat), 0, wMat)
-    nNode = wMat.shape[0]
-
-    # Create adjacency matrix (1 where connection exists)
-    adj = (wMat != 0).astype(jnp.int32)
-
-    # Find nodes with no incoming connections (sources)
-    in_degree = jnp.sum(adj, axis=0)
-    sources = jnp.where(in_degree == 0)[0]
-
-    # Initialize layers
-    layers = jnp.full(nNode, -1)
-    layers = layers.at[sources].set(0)
-
-    # Use BFS to assign layers
-    current_layer = 0
-    iteration = 0
-    timeout = 1000
-    while True:
-        # Check timeout
-        iteration += 1
-        if iteration > timeout:
-            # print("Timeout reached")
-            return None
-            
-        # Find nodes that receive input only from already-assigned layers
-        unassigned_mask = (layers == -1)
-        if not jnp.any(unassigned_mask):
-            break
-            
-        # Find nodes whose inputs are all from previous layers
-        inputs_assigned = ~jnp.any(adj[unassigned_mask], axis=0)
-        next_layer = jnp.where(unassigned_mask & inputs_assigned)[0]
-
-        if len(next_layer) == 0:
-            break
-            
-        current_layer += 1
-        layers = layers.at[next_layer].set(current_layer)
-        
-    return layers
-
-
-def getNodeKey(nodeG, connG): 
-    """ 
-    Ordered node -- layer index
-    """
-    nIns = len(nodeG[0,nodeG[1,:] == 1]) + len(nodeG[0,nodeG[1,:] == 4])
-    nOuts = len(nodeG[0,nodeG[1,:] == 2])
-    order, wMat = getNodeOrder(nodeG, connG)
-    if order is False: 
-        return False 
-
-    hMat = wMat[nIns:-nOuts,nIns:-nOuts]
-    hLay = getLayer(hMat)+1
-
-    if len(hLay) > 0:
-        lastLayer = jnp.max(hLay)+1
-    else:
-        lastLayer = 1
-        
-    L = jnp.concatenate([
-        jnp.zeros(nIns), 
-        hLay, 
-        jnp.full((nOuts,), lastLayer)
-    ])
-    nodeKey = jnp.column_stack([nodeG[0,order], L])
+    wMat, seq2node = calwMat(node, conn)
     
-    return nodeKey
-
-
-def getNodeMap(nodeG, connG): 
-  """ 
-  node id --> layer index & order index
-  """
-  nIns = len(nodeG[0,nodeG[1,:] == 1]) + len(nodeG[0,nodeG[1,:] == 4])
-  nOuts = len(nodeG[0,nodeG[1,:] == 2])
-  order, wMat = getNodeOrder(nodeG, connG)
-  if order is False: 
-    return False 
-
-  hMat = wMat[nIns:-nOuts,nIns:-nOuts]
-  hLay = getLayer(hMat)+1
-
-  if len(hLay) > 0:
-      lastLayer = max(hLay)+1
-  else:
-      lastLayer = 1
-      
-  L = jnp.hstack([jnp.zeros(nIns), hLay, jnp.full((nOuts,), lastLayer)]).astype(jnp.int32)
-  nodeMap = {}
-  for i in range(len(nodeG[0])): 
-      nodeMap[int(order[i])] = [L[i].item(), i] # layer index, order index
+    order2seq = getMatOrder(nIns, nOuts, wMat)
     
-  return nodeMap
-
-
-
-def getNodeInfo(nodeG, connG, timeout=50): 
-  """ 
-  node id --> layer index & order index
-  """
-  nIns = len(nodeG[0,nodeG[1,:] == 1]) + len(nodeG[0,nodeG[1,:] == 4])
-  nOuts = len(nodeG[0,nodeG[1,:] == 2])
-  order, wMat = getNodeOrder(nodeG, connG)
-  if order is False: 
-    return False, False, False
-
-  hMat = wMat[nIns:-nOuts,nIns:-nOuts]
-  temp_layer = getLayer(hMat, timeout=timeout)
-  if temp_layer is None: 
-    return False, order, wMat 
-  hLay = temp_layer+1 # need to add timeout for this function
-
-  if len(hLay) > 0:
-      lastLayer = max(hLay)+1
-  else:
-      lastLayer = 1
-      
-  L = jnp.hstack([jnp.zeros(nIns), hLay, jnp.full((nOuts,), lastLayer)]).astype(jnp.int32)
-
-  nodeMap = {}
-  for i in range(len(nodeG[0])): 
-      nodeMap[int(order[i])] = [L[i].item(), i] # layer index, order index
+    if order2seq is False:
+        return False, False, False, False
     
-  return nodeMap, order, wMat
+    seq2order = {int(order2seq[int(seq_idx)]): int(seq_idx) for seq_idx in order2seq}
+    node2seq = {int(node_id): int(seq_idx) for node_id, seq_idx in zip(seq2node, jnp.arange(len(seq2node)))}
+    seq2node = {int(node2seq[int(node_id)]): int(node_id) for node_id in node2seq}
+    node2order = {int(node_idx): int(seq2order[int(node2seq[int(node_idx)])]) for node_idx in node2seq}
+    return wMat, node2order, node2seq, seq2node
+  
+  
+def getLayer(wMat, node2seq, node2order, seq2node):
+    order2node = {node2order[node_idx]: node_idx for node_idx in node2order}
+    node2layer = {}
+    for order_idx in range(len(order2node)): 
+        node_idx = order2node[order_idx]
+        # Find all nodes that connect to this node
+        row_idx = node2seq[node_idx]
+        input_node_seq_ids = jnp.where((wMat[:, row_idx] != 0) & (~jnp.isnan(wMat[:, row_idx])))[0]
+        input_node_ids = [seq2node[int(i)] for i in input_node_seq_ids]
+        if len(input_node_ids) == 0:
+            # Input nodes (no incoming connections)
+            node2layer[node_idx] = 0
+        else:
+            # Node's layer is max layer of inputs + 1
+            input_node_layers = [node2layer[i] for i in input_node_ids]
+            node2layer[node_idx] = jnp.max(jnp.array(input_node_layers)) + 1
+    return node2layer 
 
+
+def getNodeInfo(nodeG, connG): 
+    wMat, node2order, node2seq, seq2node = getMat(nodeG, connG)
+    if wMat is False:
+        return False, False, False
+    node2layer = getLayer(wMat, node2seq, node2order, seq2node)
+    nodemap = {int(node_idx): (node2layer[int(node_idx)], node2order[int(node_idx)]) for node_idx in nodeG[0]}
+    seq_node_indices = [seq2node[seq_idx] for seq_idx in range(len(seq2node))]
+    return nodemap, seq_node_indices, wMat
 
 
 def applyAct(actId, x):

@@ -1,7 +1,7 @@
 import jax.numpy as jnp
 import copy
 import json
-from .ann import getLayer, getNodeOrder, obtainOutgoingConnections, getNodeMap, getNodeInfo
+from .ann import obtainOutgoingConnections, getNodeInfo
 import jax
 
 def initIndiv(shapes, seed=0): 
@@ -163,7 +163,7 @@ class Ind():
     """
     Converts genes to nodeMap, order, and weight matrix | failed to express make current gene not expressable
     """
-    node_map, order, wMat = getNodeInfo(self.node, self.conn, timeout=timeout) # cap on complexity here
+    node_map, order, wMat = getNodeInfo(self.node, self.conn) # cap on complexity here
         
     if order is not False: # no cyclic connections
       self.wMat = wMat
@@ -181,7 +181,7 @@ class Ind():
     else:
       return False
   
-  def mutate(self,p,innov=None,gen=None, mute_top_change=False, seed=0):
+  def mutate(self, p, innov=None, gen=None, mute_top_change=True, seed=0):
     """
     Randomly alter topology and weights of individual
     """
@@ -192,11 +192,8 @@ class Ind():
     
     innov_orig = jnp.copy(innov) if innov is not None else None
     
-    # - Re-enable connections
-    # if mute_top_change:
-    #   disabled  = np.where(connG[4,:] == 0)[0]
-    #   reenabled = np.random.rand(1,len(disabled)) < p['prob_enable']
-    #   connG[4,disabled] = reenabled
+    # - Change connection status (Turn On/Off)
+    connG, nodeG, innov = self.mutSparsity(p, innov, seed=seed)
          
     # - Weight mutation
     key = jax.random.PRNGKey(seed)
@@ -208,28 +205,29 @@ class Ind():
     connG = connG.at[3, (connG[3,:] >  p['ann_absWCap'])].set(p['ann_absWCap'])
     connG = connG.at[3, (connG[3,:] < -p['ann_absWCap'])].set(-p['ann_absWCap'])
     
-    gen = gen if gen is not None else self.gen if self.gen is not None else 0
-    top_mutate = gen <= p['stop_topology_mutate_generations'] if 'stop_topology_mutate_generations' in p else 200
-    top_mutate = top_mutate or mute_top_change
+    # Cap on number of layers & connections
+    active_conn = jnp.sum(connG[4,:])
+    top_mutate = active_conn < p['cap_conn']
     
     key = jax.random.PRNGKey(seed + 1)
     if (jax.random.uniform(key, shape=()) < p['prob_addNode'] * top_mutate) and jnp.any(connG[4,:]==1):
       connG, nodeG, innov = self.mutAddNode(connG, nodeG, innov, gen, p, seed=seed + 2)
-
+    
     key = jax.random.PRNGKey(seed + 3)
     if (jax.random.uniform(key, shape=()) < p['prob_addConn'] * top_mutate):
       connG, nodeG, innov = self.mutAddConn(connG, nodeG, innov, gen, p, seed=seed + 4) 
     
     child = Ind(connG, nodeG)
     child.birth = gen
-    child.gen = gen + 1
+    child.gen = gen + 1 if gen is not None else None
+    
     child_valid = child.express(timeout=p['timeout'] if 'timeout' in p else 10)
     
-    if not child_valid: 
-      child = self.safe_mutate(p, seed=seed + 5)
-      return child, innov_orig 
-    else:
+    if child_valid: 
       return child, innov 
+    else:
+      print(":: Failed to express child")
+      return self, innov_orig 
   
   def safe_mutate(self, seed=0):
     conn = self.conn 
@@ -239,7 +237,7 @@ class Ind():
     child = Ind(conn, node) 
     assert child.express(), ":: Naive parameter mutation gives errored individual"
     return child
-
+  
   def mutAddNode(self, connG, nodeG, innov, gen, p, seed=0):
     """
     Add new node to genome
@@ -287,8 +285,8 @@ class Ind():
         
     newConns = jnp.vstack((connTo,connFrom)).T
         
-    # Disable original connection :: aha I see, so it's still here but disabled
-    connG = connG.at[4,connSplit].set(0)
+    # Set original connection weight to 0.0 instead of disabling it
+    connG = connG.at[3,connSplit].set(0.0)
         
     # Record innovations
     if innov is not None:
@@ -303,6 +301,35 @@ class Ind():
     
     return connG, nodeG, innov
 
+  def mutSparsity(self, p, innov=None, seed=0):
+    nodeG = jnp.copy(self.node)
+    connG = jnp.copy(self.conn)
+    nodeMap, _, _ = getNodeInfo(nodeG, connG)
+    if nodeMap is False:
+        print(":: Failed to get node order")
+        return connG, nodeG, innov
+
+    # pick non-essential connections and pick ratio of them to randomize 'on/off' status 
+    bias_node_ids = nodeG[0, (nodeG[1,:]==4) | (nodeG[1,:]==1)]
+    non_essential_conn_ids = ~jnp.isin(connG[1,:], bias_node_ids) & ~jnp.isin(connG[2,:], bias_node_ids)
+
+    # Randomly select connections to modify based on change_ratio
+    n_conns = jnp.sum(non_essential_conn_ids)
+    n_change = int(n_conns * p['prob_mutTurnConn'])
+    
+    key = jax.random.PRNGKey(seed)
+    change_indices = jax.random.choice(key, n_conns, shape=(n_change,), replace=False)
+    
+    # Create array of 1s and 0s based on sparsity ratio
+    key = jax.random.PRNGKey(seed + 1)
+    new_states = jax.random.bernoulli(key, p=p['sparsity_ratio'], shape=(n_change,))
+
+    # Update selected connections
+    update_indices = jnp.arange(connG.shape[1])[non_essential_conn_ids][change_indices]
+    connG = connG.at[4, update_indices].set(new_states)
+    return connG, nodeG, innov
+  
+  
   def mutAddConn(self, connG, nodeG, innov, gen, p = {"ann_absWCap": 2}, seed=0):
     """Add new connection to genome.
     To avoid creating recurrent connections all nodes are first sorted into
@@ -315,7 +342,7 @@ class Ind():
     else:
       newConnId = innov[0,-1]+1 
 
-    nodeMap = getNodeMap(nodeG, connG)
+    nodeMap, _, _ = getNodeInfo(nodeG, connG)
     if nodeMap is False:
         # print(":: Failed to get node order")
         return connG, nodeG, innov
@@ -352,3 +379,20 @@ class Ind():
             return connG, nodeG, innov
           
     return connG, nodeG, innov
+  
+  def save(self, filename): 
+    with open(filename, 'w') as file: 
+      json.dump({'conn': self.conn.tolist(), 'node': self.node.tolist()}, file)
+    
+  @classmethod 
+  def load(cls, filename): 
+    with open(filename, 'r') as file: 
+      data = json.load(file)
+      return cls(jnp.array(data['conn']), jnp.array(data['node']))
+    
+  def to_np(self): 
+    from ..neat_src.ind import Ind
+    import numpy as np 
+    ind = Ind(np.copy(self.conn), np.copy(self.node))
+    ind.express()
+    return ind 

@@ -12,7 +12,7 @@ from tqdm import tqdm
 # Settings
 random_seed = 612
 population_size = 128
-total_tournaments = 15000
+total_tournaments = 150000
 save_freq = 1000
 
 # Environment
