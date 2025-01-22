@@ -19,14 +19,22 @@ from tqdm import tqdm
 # What if one choose to fix topology and just tune the 'connection weights'? 
 # -- that's just conn[3,:] right? do we have a clever way to do this ? 
 
-def schedule_mutate(tournament: int) -> bool:
-    if tournament % 80000 < 5000:
+class RandomPolicy:
+  def __init__(self, path):
+    self.action_space = gym.spaces.MultiBinary(3)
+    pass
+  def predict(self, obs):
+    return self.action_space.sample()
+  
+
+def schedule_mutate(tournament: int, topo_mut_freq: float = 1/16) -> bool:
+    if tournament % 80000 < int(topo_mut_freq * 80000):
         return True 
     else:
         return False
 
-def mutate(ind, p, tournament): 
-    if schedule_mutate(tournament):
+def mutate(ind, p, tournament, topo_mut_freq: float = 1/16): 
+    if schedule_mutate(tournament, topo_mut_freq):
         child, _ = ind.mutate(p=p)
         if child: 
             return child 
@@ -102,8 +110,12 @@ def update_winning_streak(winning_streak, left_idx, right_idx, score_right, scor
   
   
 def pick_villain(prev_villain_policy, tournament: int, population, winning_streak, period: int = 1000):
+    """ 
+    Pick a new villain policy from the population
+    w.p. select random policy
+    """
     if prev_villain_policy is None or tournament % period == 0:
-        villain_idx = np.argmax(winning_streak)
+        villain_idx = np.random.choice(np.flatnonzero(winning_streak == np.max(winning_streak)))
         villain = population[villain_idx]
         winning_streak[:] = [0] * len(winning_streak) # reset winning streak
         return NeatPolicy(villain, games['slimevolleylite']), winning_streak
@@ -151,19 +163,18 @@ def main(args):
 
         # Tournament based population update 
         if score_right == score_left:
-            population[left_idx] = mutate(population[left_idx], p=hyp, tournament=tournament)
+            population[left_idx] = mutate(population[left_idx], p=hyp, tournament=tournament, topo_mut_freq=args.topo_mut_freq)
         elif score_right > score_left:
-            population[left_idx] = mutate(population[right_idx], p=hyp, tournament=tournament)
+            population[left_idx] = mutate(population[right_idx], p=hyp, tournament=tournament, topo_mut_freq=args.topo_mut_freq)
         else:
-            population[right_idx] = mutate(population[left_idx], p=hyp, tournament=tournament)
+            population[right_idx] = mutate(population[left_idx], p=hyp, tournament=tournament, topo_mut_freq=args.topo_mut_freq)
             
         winning_streak = update_winning_streak(winning_streak, 
                                                left_idx, 
                                                right_idx, 
                                                score_right, 
                                                score_left, 
-                                               mut_discount=0.8
-                                               )
+                                               mut_discount=args.mut_discount)
 
         if tournament % args.save_freq == 0:
             model_filename = os.path.join(logdir, f"sneat_{tournament:08d}.json")
@@ -200,5 +211,7 @@ if __name__ == "__main__":
     parser.add_argument('--checkpoint', type=str, default='../zoo/sneat_check/sneat_00360000_small.json', help='Checkpoint file to start from')
     parser.add_argument("--selfplay", action="store_true", help="Use selfplay")
     parser.add_argument("--period", type=int, default=1000, help="Period for picking a new villain")
+    parser.add_argument("--topo-mut-freq", type=float, default=1/16, help="Frequency of topology mutation")
+    parser.add_argument("--mut-discount", type=float, default=0.8, help="Mutation discount factor")
     args = parser.parse_args()
     main(args)

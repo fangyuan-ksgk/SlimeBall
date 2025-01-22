@@ -114,9 +114,9 @@ if __name__ == "__main__":
             time.sleep(100)
             continue
 
-        policy0 = NEATPolicy(left_neat_file)
-        policy1 = NEATPolicy(right_neat_file)
+        policy0 = NEATPolicy(right_neat_file)
+        policy1 = NEATPolicy(left_neat_file)
         
         # Evaluate the agents against each other
         history = evaluate_multiagent(env, policy0, policy1, render_mode=True, n_trials=5)
-        print(f"Latest checkpoint: {left_neat_file}", "   |   ", f"{right_neat_file}")
+        print(f"Left Agent checkpoint: {left_neat_file}", "   |   ", f"Right Agent checkpoint: {right_neat_file}")
