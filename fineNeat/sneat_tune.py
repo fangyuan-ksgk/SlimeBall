@@ -110,7 +110,8 @@ def update_winning_streak(winning_streak, left_idx, right_idx, score_right, scor
             winning_streak[left_idx] = max(winning_streak[left_idx], score_left)
         else:
             winning_streak[left_idx] *= mut_discount
-    return winning_streak
+    
+  return winning_streak
 
 def main(args):
     # Initialize hyperparameters
