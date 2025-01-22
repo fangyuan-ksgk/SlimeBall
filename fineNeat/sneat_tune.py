@@ -144,7 +144,7 @@ def main(args):
         policy_right = NeatPolicy(population[right_idx], game)
         policy_left = NeatPolicy(population[left_idx], game)
 
-        score_right, score_left, length = eval(env, policy_left, policy_right, policy_base, selfplay=args.selfplay, naive=args.naive)
+        score_right, score_left, length = eval(env, policy_left, policy_right, policy_base, selfplay=args.selfplay)
         history.append(int(length))
         
 
@@ -162,7 +162,8 @@ def main(args):
                                                score_right, 
                                                score_left, 
                                                mut_discount=0.8, 
-                                               selfplay=args.selfplay)
+                                               selfplay=args.selfplay,
+                                               naive=args.naive)
 
         if tournament % args.save_freq == 0:
             model_filename = os.path.join(logdir, f"sneat_{tournament:08d}.json")
