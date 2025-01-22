@@ -36,19 +36,28 @@ if not os.path.exists(logdir):
 if not os.path.exists(visdir):
   os.makedirs(visdir)
   
+def schedule_mutate(tournament: int) -> bool: 
+  """ 
+  Whether to mutate topology or not
+  """
+  if tournament % 80000 < 5000:
+    return True 
+  else:
+    return False
 
-def mutate(ind, p, tournament):
-    if tournament > 10000:
-      return ind.safe_mutate(p)
-    else:
-      child, _ = ind.mutate(p=p)
-      if child: 
-         return child 
-      else:
-          return ind.safe_mutate(p)
+def mutate(ind, p, tournament): 
+  """ 
+  Mutate the agent
+  """
+  if schedule_mutate(tournament):
+    child, _ = ind.mutate(p=p)
+    if child: 
+      return child 
+  return ind.safe_mutate(p)
 
 game = games['slimevolleylite']
 # load best sneat agent into population 
+# population = 
 population = [Ind.from_shapes([(game.input_size, 5), (5, game.output_size)]) for _ in range(population_size)]
 print(":: Initialized Population with best sneat agent checkpoint")
 
