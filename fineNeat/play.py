@@ -89,9 +89,9 @@ def get_neat_file(file_path: str) -> str:
   if file_path.endswith(".json"): 
     return file_path
   else: 
-    files = glob.glob(file_path + "/*.json")    
-    if len(files) == 0: 
-        return None 
+    files = glob.glob(file_path + "/*.json")  
+    if len(files) == 0:
+      return None
     files.sort(key=lambda x: int(x.split("_")[-1].split(".")[0]))
     return files[-1]
 
@@ -103,16 +103,17 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     env = gym.make("SlimeVolley-v0")
-    
-    import time 
+    import time
+
     while True:
         # Get latest checkpoint file
         left_neat_file = get_neat_file(args.left_logdir)
         right_neat_file = get_neat_file(args.right_logdir)
+
         if left_neat_file is None or right_neat_file is None:
-            time.sleep(90)
+            time.sleep(100)
             continue
-        
+
         policy0 = NEATPolicy(left_neat_file)
         policy1 = NEATPolicy(right_neat_file)
         
