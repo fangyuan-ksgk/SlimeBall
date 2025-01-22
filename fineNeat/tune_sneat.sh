@@ -9,10 +9,8 @@ python sneat_tune.py \
     --selfplay \
     --logdir ../runs/sneat_tune_sp \
     --checkpoint ../zoo/sneat_check/sneat_00360000_small.json \
-    --total-tournaments 480000
+    --total-tournaments 480000 &
 
 # visualization of duel GamePlay
 python play.py --left_logdir ../runs/sneat_tune_non_sp --right_logdir ../runs/sneat_tune_sp
 
-# Wait for all background processes to complete
-wait
