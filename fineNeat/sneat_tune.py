@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 # Settings
 random_seed = 612
 population_size = 128
-total_tournaments = 600000
+total_tournaments = 120000
 save_freq = 1000
 
 # Environment
@@ -29,8 +29,8 @@ hyp = loadHyp(pFileName=hyp_default, load_task=load_task)
 updateHyp(hyp,load_task,hyp_adjust)
 
 # Log results
-logdir = "../runs/sneat_sp"
-visdir = "../runs/sneat_sp/vis"
+logdir = "../runs/sneat_tune"
+visdir = "../runs/sneat_tune/vis"
 if not os.path.exists(logdir):
   os.makedirs(logdir)
 if not os.path.exists(visdir):
@@ -56,9 +56,9 @@ def mutate(ind, p, tournament):
   return ind.safe_mutate(p)
 
 game = games['slimevolleylite']
-# load best sneat agent into population 
-# population = 
-population = [Ind.from_shapes([(game.input_size, 5), (5, game.output_size)]) for _ in range(population_size)]
+tune_checkpoint = "zoo/sneat_check/sneat_00360000_small.json"
+load_ind = Ind.load(tune_checkpoint)  
+population = [load_ind.safe_mutate(p=hyp) for _ in range(population_size)]
 print(":: Initialized Population with best sneat agent checkpoint")
 
 winning_streak = [0] * population_size # store the number of wins for this agent (including mutated ones)
@@ -134,3 +134,9 @@ for tournament in tqdm(range(1, total_tournaments+1)):
           "stdev:", np.std(history),
          )
     history = []
+    
+    
+info_str = "Load from file: " + tune_checkpoint
+print(info_str)
+with open(os.path.join(logdir, "info.txt"), 'wt') as out:
+  out.write(info_str)
