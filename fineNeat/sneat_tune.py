@@ -81,7 +81,17 @@ def eval(env, policy_left, policy_right, policy_base, selfplay=False):
     return score_right, score_left, (time_right + time_left) / 2
   
   
-def update_winning_streak(winning_streak, left_idx, right_idx, score_right, score_left, mut_discount=0.8, selfplay=False):
+def update_winning_streak(winning_streak, left_idx, right_idx, score_right, score_left, mut_discount=0.8, selfplay=False, naive=False):
+  if naive: 
+    if score_right > score_left: 
+      winning_streak[left_idx] = winning_streak[right_idx]
+      winning_streak[right_idx] += 1
+    elif score_right < score_left: 
+      winning_streak[right_idx] = winning_streak[left_idx]
+      winning_streak[left_idx] += 1
+    else: 
+      winning_streak[left_idx] = winning_streak[left_idx]
+  else:
     if not selfplay: 
         if score_right > score_left: 
           winning_streak[left_idx] = winning_streak[right_idx] * mut_discount
@@ -134,7 +144,7 @@ def main(args):
         policy_right = NeatPolicy(population[right_idx], game)
         policy_left = NeatPolicy(population[left_idx], game)
 
-        score_right, score_left, length = eval(env, policy_left, policy_right, policy_base, selfplay=args.selfplay)
+        score_right, score_left, length = eval(env, policy_left, policy_right, policy_base, selfplay=args.selfplay, naive=args.naive)
         history.append(int(length))
         
 
@@ -160,7 +170,7 @@ def main(args):
                 record_holder = np.argmax(winning_streak)
                 population[record_holder].save(model_filename)
 
-        if (tournament) % 100 == 0:
+        if (tournament) % args.save_freq == 0:
             record_holder = np.argmax(winning_streak)
             fig, _ = viewInd(population[record_holder])
             plt.close(fig)
@@ -188,6 +198,7 @@ if __name__ == "__main__":
     parser.add_argument('--logdir', type=str, default='../runs/sneat_tune_base', help='Log directory')
     parser.add_argument('--checkpoint', type=str, default='../zoo/sneat_check/sneat_00360000_small.json', help='Checkpoint file to start from')
     parser.add_argument("--selfplay", action="store_true", help="Use selfplay")
+    parser.add_argument("--naive", action="store_true", help="Use naive winning streak update")
     
     args = parser.parse_args()
     main(args)

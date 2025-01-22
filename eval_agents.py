@@ -125,7 +125,7 @@ if __name__=="__main__":
     "random": None,
     "neat": "runs/neat/volley1200_best.json",
     "sneat": "runs/sneat/sneat_00500000.json",
-    "sneat_tune": "runs/sneat_tune_base/sneat_00071000.json",
+    "sneat_tune": "runs/sneat_tune_base/sneat_00117000.json",
     "sneat_sp": "runs/sneat_sp_cons/sneat_00350000.json",
     "sneat_sp1": "runs/sneat_sp_cons1/sneat_00310000.json"
   }
