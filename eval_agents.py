@@ -104,7 +104,7 @@ def evaluate_multiagent(env, policy0, policy1, render_mode=False, n_trials=1000,
 if __name__=="__main__":
 
   APPROVED_MODELS = ["baseline", "ppo", "ga", "jacobian", "cma", "random", "neat", "sneat", "sneat_tune",
-                     "sneat_sp"]
+                     "sneat_sp", "sneat_sp1"]
 
   def checkchoice(choice):
     choice = choice.lower()
@@ -121,12 +121,13 @@ if __name__=="__main__":
     "ppo": "zoo/ppo/best_model.zip",
     "cma": "zoo/cmaes/slimevolley.cma.64.96.best.json",
     "jacobian": "training_scripts/ga_jacobian_estimate2/jacobian_00241000.json",
-    "ga": "training_scripts/ga_selfplay/ga_00135000.json",
+    "ga": "training_scripts/ga_selfplay/ga_00080000.json",
     "random": None,
-    "neat": "runs/neat/volley140_best.json",
+    "neat": "runs/neat/volley1200_best.json",
     "sneat": "runs/sneat/sneat_00500000.json",
     "sneat_tune": "runs/sneat_tune/sneat_00068000.json",
-    "sneat_sp": "runs/sneat_sp/sneat_00150000.json"
+    "sneat_sp": "runs/sneat_sp_cons/sneat_00350000.json",
+    "sneat_sp1": "runs/sneat_sp_cons1/sneat_00310000.json"
   }
 
   MODEL = {
@@ -139,7 +140,8 @@ if __name__=="__main__":
     "jacobian": makeSlimePolicyLite,
     "sneat": NEATPolicy,
     "sneat_tune": NEATPolicy,
-    "sneat_sp": NEATPolicy
+    "sneat_sp": NEATPolicy,
+    "sneat_sp1": NEATPolicy
   }
 
   parser = argparse.ArgumentParser(description='Evaluate pre-trained agents against each other.')

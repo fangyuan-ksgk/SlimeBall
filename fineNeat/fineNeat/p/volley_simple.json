@@ -8,7 +8,7 @@
     "prob_addConn": 0.2,
     "prob_mutTurnConn": 0.2,
     "sparsity_ratio": 0.5,
-    "cap_conn": 90,
+    "cap_conn": 110,
     "cap_layer": 3,
-    "desired_conn": 50
+    "desired_conn": 80
 }

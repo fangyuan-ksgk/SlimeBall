@@ -12,7 +12,7 @@ from tqdm import tqdm
 # Settings
 random_seed = 612
 population_size = 128
-total_tournaments = 150000
+total_tournaments = 1500000
 save_freq = 1000
 
 # Environment
@@ -25,8 +25,8 @@ hyp = loadHyp(pFileName=hyp_default, load_task=load_task)
 updateHyp(hyp,load_task,hyp_adjust)
 
 # Log results
-logdir = "../runs/sneat_sp_cons"
-visdir = "../runs/sneat_sp_cons/vis"
+logdir = "../runs/sneat_sp_cons1"
+visdir = "../runs/sneat_sp_cons1/vis"
 if not os.path.exists(logdir):
   os.makedirs(logdir)
 if not os.path.exists(visdir):
