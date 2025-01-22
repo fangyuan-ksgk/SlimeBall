@@ -101,10 +101,20 @@ def evaluate_multiagent(env, policy0, policy1, render_mode=False, n_trials=1000,
     history.append(cumulative_score)
   return history
 
+
+import glob 
+  
+def get_neat_file(file_path: str) -> str: 
+  if file_path.endswith(".json"): 
+    return file_path
+  else: 
+    files = glob.glob(file_path + "/*.json")    
+    files.sort(key=lambda x: int(x.split("_")[-1].split(".")[0]))
+    return files[-1]
+
 if __name__=="__main__":
 
-  APPROVED_MODELS = ["baseline", "ppo", "ga", "jacobian", "cma", "random", "neat", "sneat", "sneat_tune",
-                     "sneat_sp", "sneat_nsp"]
+  APPROVED_MODELS = ["baseline", "ppo", "ga", "jacobian", "cma", "random", "neat", "sneat"]
 
   def checkchoice(choice):
     choice = choice.lower()
@@ -112,10 +122,8 @@ if __name__=="__main__":
       return False
     return True
 
-  import glob 
-  neat_files = glob.glob("zoo/neat_sp/*.pkl")
-  neat_file = neat_files[0]
   
+    
   PATH = {
     "baseline": None,
     "ppo": "zoo/ppo/best_model.zip",
@@ -125,9 +133,6 @@ if __name__=="__main__":
     "random": None,
     "neat": "runs/neat/volley1200_best.json",
     "sneat": "runs/sneat/sneat_00500000.json",
-    "sneat_tune": "runs/sneat_tune_base/sneat_00117000.json",
-    "sneat_sp": "runs/sneat_tune_sp/sneat_00292000.json",
-    "sneat_nsp": "runs/sneat_tune_non_sp/sneat_00108000.json"
   }
 
   MODEL = {
@@ -139,9 +144,6 @@ if __name__=="__main__":
     "neat": NEATPolicy,
     "jacobian": makeSlimePolicyLite,
     "sneat": NEATPolicy,
-    "sneat_tune": NEATPolicy,
-    "sneat_sp": NEATPolicy,
-    "sneat_nsp": NEATPolicy
   }
 
   parser = argparse.ArgumentParser(description='Evaluate pre-trained agents against each other.')

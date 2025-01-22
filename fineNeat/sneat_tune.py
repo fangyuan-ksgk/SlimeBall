@@ -45,8 +45,10 @@ def connW_to_ind(connW, connG, nodeG):
     return ind
     
 def eval_ind_parameter_fitness(connW, connG, nodeG, opponent_policy, env):
+    max_time = 3000
     policy_left = connW_to_policy(connW, connG, nodeG)
-    score, length = rollout(env, policy_left, opponent_policy)
+    raw_score, _time = rollout(env, policy_left, opponent_policy)
+    score = raw_score * (1 - _time / max_time)
     return score 
   
 def jacobian_step(ind_left, ind_right, step_size, env, game=games['slimevolleylite']):
@@ -66,53 +68,48 @@ def jacobian_step(ind_left, ind_right, step_size, env, game=games['slimevolleyli
     
     return ind_mutated
 
-def eval(env, policy_left, policy_right, policy_base, selfplay=False):
+def eval(env, policy_left, policy_right, base_policy, villain_policy, selfplay=False):
+    """ 
+    Unify self-play with non-selfplay -- both involves two agents playing against an opponent policy
+    """
     max_time = 3000
-    if selfplay: 
-        raw_score_right, time_right = rollout(env, policy_left, policy_right)
-        raw_score_left, time_left = -raw_score_right, time_right
-        score_right = raw_score_right * (1 - time_right / max_time)
-        score_left = raw_score_left * (1 - time_left / max_time)
-    else: 
-        raw_score_right, time_right = rollout(env, policy_right, policy_base)
-        raw_score_left, time_left = rollout(env, policy_left, policy_base)
-        score_right = raw_score_right * (1 - time_right / max_time)
-        score_left = raw_score_left * (1 - time_left / max_time)
+    if selfplay: # switch to play against villain policy 
+        opponent_policy = villain_policy
+    else:
+        opponent_policy = base_policy     
+        
+    raw_score_right, time_right = rollout(env, policy_right, opponent_policy)
+    raw_score_left, time_left = rollout(env, policy_left, opponent_policy)
+    score_right = raw_score_right * (1 - time_right / max_time)
+    score_left = raw_score_left * (1 - time_left / max_time)
     return score_right, score_left, (time_right + time_left) / 2
   
   
-def update_winning_streak(winning_streak, left_idx, right_idx, score_right, score_left, mut_discount=0.8, selfplay=False, naive=False):
-  if naive: 
+def update_winning_streak(winning_streak, left_idx, right_idx, score_right, score_left, mut_discount=0.8):
+    """ 
+    Simple approach: Absolute score to represent quality
+    """
     if score_right > score_left: 
-      winning_streak[left_idx] = winning_streak[right_idx]
-      winning_streak[right_idx] += 1
+      winning_streak[left_idx] = winning_streak[right_idx] * mut_discount
+      winning_streak[right_idx] = score_right
     elif score_right < score_left: 
-      winning_streak[right_idx] = winning_streak[left_idx]
-      winning_streak[left_idx] += 1
+      winning_streak[right_idx] = winning_streak[left_idx] * mut_discount
+      winning_streak[left_idx] = score_left
     else: 
-      winning_streak[left_idx] = winning_streak[left_idx]
-  else:
-    if not selfplay: 
-        if score_right > score_left: 
-          winning_streak[left_idx] = winning_streak[right_idx] * mut_discount
-          winning_streak[right_idx] = score_right
-        elif score_right < score_left: 
-          winning_streak[right_idx] = winning_streak[left_idx] * mut_discount
-          winning_streak[left_idx] = score_left
-        else: 
-          winning_streak[left_idx] = score_left * mut_discount
-    else:
-        if score_right > score_left:
-            winning_streak[left_idx] = winning_streak[right_idx] * mut_discount
-            winning_streak[right_idx] = max(winning_streak[right_idx], score_right)  # Update winner's best score
-        elif score_right < score_left:
-            winning_streak[right_idx] = winning_streak[left_idx] * mut_discount
-            winning_streak[left_idx] = max(winning_streak[left_idx], score_left)
-        else:
-            winning_streak[left_idx] *= mut_discount
-    
-  return winning_streak
+      winning_streak[left_idx] = score_left * mut_discount
 
+    return winning_streak
+  
+  
+def pick_villain(prev_villain_policy, tournament: int, population, winning_streak, period: int = 1000):
+    if prev_villain_policy is None or tournament % period == 0:
+        villain_idx = np.argmax(winning_streak)
+        villain = population[villain_idx]
+        winning_streak[:] = [0] * len(winning_streak) # reset winning streak
+        return NeatPolicy(villain, games['slimevolleylite']), winning_streak
+    return prev_villain_policy, winning_streak
+  
+  
 def main(args):
     # Initialize hyperparameters
     hyp = loadHyp(pFileName=args.hyp_default, load_task=load_task)
@@ -136,6 +133,7 @@ def main(args):
     env.seed(args.seed)
     np.random.seed(args.seed)
     policy_base = BaselinePolicy()
+    villain_policy = None
 
     history = []
 
@@ -144,8 +142,10 @@ def main(args):
 
         policy_right = NeatPolicy(population[right_idx], game)
         policy_left = NeatPolicy(population[left_idx], game)
-
-        score_right, score_left, length = eval(env, policy_left, policy_right, policy_base, selfplay=args.selfplay)
+        
+        villain_policy, winning_streak = pick_villain(villain_policy, tournament, population, winning_streak, period=args.period)
+        
+        score_right, score_left, length = eval(env, policy_left, policy_right, policy_base, villain_policy, selfplay=args.selfplay)
         history.append(int(length))
         
 
@@ -162,9 +162,8 @@ def main(args):
                                                right_idx, 
                                                score_right, 
                                                score_left, 
-                                               mut_discount=0.8, 
-                                               selfplay=args.selfplay,
-                                               naive=args.naive)
+                                               mut_discount=0.8
+                                               )
 
         if tournament % args.save_freq == 0:
             model_filename = os.path.join(logdir, f"sneat_{tournament:08d}.json")
@@ -200,7 +199,6 @@ if __name__ == "__main__":
     parser.add_argument('--logdir', type=str, default='../runs/sneat_tune_base', help='Log directory')
     parser.add_argument('--checkpoint', type=str, default='../zoo/sneat_check/sneat_00360000_small.json', help='Checkpoint file to start from')
     parser.add_argument("--selfplay", action="store_true", help="Use selfplay")
-    parser.add_argument("--naive", action="store_true", help="Use naive winning streak update")
-    
+    parser.add_argument("--period", type=int, default=1000, help="Period for picking a new villain")
     args = parser.parse_args()
     main(args)
