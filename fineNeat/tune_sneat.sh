@@ -15,4 +15,3 @@ python sneat_tune.py \
 
 # visualization of duel GamePlay
 python play.py --left_logdir ../runs/sneat_tune_sp_long_period --right_logdir ../runs/sneat_tune_sp
-

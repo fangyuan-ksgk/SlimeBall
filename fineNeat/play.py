@@ -93,8 +93,8 @@ def get_neat_file(file_path: str) -> str:
     if len(files) == 0:
       return None
     if "volley" in file_path: 
-      files.sort(key=lambda x: int(x.split("_")[0].split("volley")[-1]))
-    else:
+      files.sort(key=lambda x: int(x.split("volley")[-1].split("_best")[0]))
+    elif "sneat" in file_path:
       files.sort(key=lambda x: int(x.split("_")[-1].split(".")[0]))
     return files[-1]
 
