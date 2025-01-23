@@ -10,6 +10,8 @@ import random
 from time import time
 from concurrent.futures import ProcessPoolExecutor
 import os 
+import gym
+import argparse
 
 game = games["slimevolley"]
 task = GymTask(game)
@@ -20,22 +22,19 @@ fileName = "volley"
 
 hyp = loadHyp(pFileName=hyp_default, load_task=load_task)
 updateHyp(hyp,load_task,hyp_adjust)
-print('\t*** Running with hyperparameters: ', hyp_adjust, '\t***')
 
 neat = Neat(hyp)
 
-# Parallal Reward Assignment (Speed-Up 3x)
 
 def evaluate_individual(args):
-    task, ind = args
-    return task.getFitness(ind)
+    wMat, aVec = args
+    return task.getFitness(wMat, aVec)
 
-
-def parallelEval(pop, task, n_workers=None):
+def parallelEval(pop, n_workers=None):
     if n_workers is None:
         n_workers = os.cpu_count()
     
-    eval_args = [(task, ind) for ind in pop]
+    eval_args = [(ind.wMat, ind.aVec) for ind in pop]
     
     with ProcessPoolExecutor(max_workers=n_workers) as executor:
         futures = list(
@@ -48,41 +47,58 @@ def parallelEval(pop, task, n_workers=None):
 from fineNeat import DataGatherer
 from tqdm import tqdm
 
-LOG_PATH = "../runs/neat/"
+LOG_PATH = "../runs/neat_non_sp/"
 VIS_PATH = LOG_PATH + "/vis/"
 
 if not os.path.exists(VIS_PATH):
     os.makedirs(VIS_PATH)
 
-# -- Run NEAT ------------------------------------------------------------ -- #
-def master(): 
-  """Main NEAT optimization script
-  """
-  global fileName, hyp
-  data = DataGatherer(fileName, hyp, LOG_PATH)
-  neat = Neat(hyp)
+# Add before master()
+def parse_args():
+    parser = argparse.ArgumentParser(description='NEAT training script')
+    parser.add_argument('--seed', type=int, default=612, help='Random seed')
+    parser.add_argument('--save-freq', type=int, default=100, help='Save frequency')
+    parser.add_argument('--hyp-default', type=str, default='fineNeat/p/default_sneat.json', help='Default hyperparameters file')
+    parser.add_argument('--hyp-adjust', type=str, default='fineNeat/p/volley_sparse.json', help='Adjustment hyperparameters file')
+    parser.add_argument('--logdir', type=str, default='../runs/neat_non_sp/', help='Log directory')
+    return parser.parse_args()
+
+def master():
+    args = parse_args()
+    
+    # Set seeds
+    np.random.seed(args.seed)
+    
+    # Update global variables based on args
+    global hyp, LOG_PATH
+    hyp = loadHyp(pFileName=args.hyp_default, load_task=load_task)
+    updateHyp(hyp, load_task, args.hyp_adjust)
+    LOG_PATH = args.logdir
+    
+    data = DataGatherer(fileName, hyp, LOG_PATH)
+    neat = Neat(hyp)
   
-  # better to start from a properly complicated network topology here
+    # better to start from a properly complicated network topology here
   
-  save_freq = 100
+    save_freq = args.save_freq
 
-  for gen in tqdm(range(hyp['maxGen']), total=hyp['maxGen'], desc="NEAT Generation Evolution"):        
-    pop = neat.ask()            # Get newly evolved individuals from NEAT  
-    reward = parallelEval(pop, task, n_workers=None)  # Send pop to be evaluated by workers
-    neat.tell(reward)           # Send fitness to NEAT    
+    for gen in tqdm(range(hyp['maxGen']), total=hyp['maxGen'], desc="NEAT Generation Evolution"):        
+        pop = neat.ask()            # Get newly evolved individuals from NEAT  
+        reward = parallelEval(pop, n_workers=None)  # Send pop to be evaluated by workers
+        neat.tell(reward)           # Send fitness to NEAT    
 
-    data.gatherData(neat.pop, neat.species)
-    print(gen, '\t - \t', data.display())
+        data.gatherData(neat.pop, neat.species)
+        print(gen, '\t - \t', data.display())
 
-    if gen % save_freq == 0:
-        if gen > 0: 
-            grid_img = neat.printSpecies(neat.species, mute=True)
-            grid_img.save(VIS_PATH + "neat_species_" + str(gen) + ".png")
-        data.save(gen)
+        if gen % save_freq == 0:
+            if gen > 0: 
+                grid_img = neat.printSpecies(neat.species, mute=True)
+                grid_img.save(VIS_PATH + "neat_species_" + str(gen) + ".png")
+            data.save(gen)
 
-  # Clean up and data gathering at run end
-  data.save(gen)
+    # Clean up and data gathering at run end
+    data.save(gen)
   
   
 if __name__ == "__main__":
-  master()
+    master()
