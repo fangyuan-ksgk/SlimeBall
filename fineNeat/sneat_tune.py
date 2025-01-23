@@ -27,14 +27,14 @@ class RandomPolicy:
     return self.action_space.sample()
   
 
-def schedule_mutate(tournament: int, topo_mut_freq: float = 1/16) -> bool:
-    if tournament % 80000 < int(topo_mut_freq * 80000):
+def schedule_mutate(tournament: int, topo_mut_freq: float = 1/16, period_length: int = 160000) -> bool:
+    if tournament % period_length < int(topo_mut_freq * period_length):
         return True 
     else:
         return False
 
-def mutate(ind, p, tournament, topo_mut_freq: float = 1/16): 
-    if schedule_mutate(tournament, topo_mut_freq):
+def mutate(ind, p, tournament, topo_mut_freq: float = 1/16, period_length: int = 160000): 
+    if schedule_mutate(tournament, topo_mut_freq, period_length):
         child, _ = ind.mutate(p=p)
         if child: 
             return child 
