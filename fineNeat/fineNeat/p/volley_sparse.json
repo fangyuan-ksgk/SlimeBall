@@ -10,5 +10,6 @@
     "sparsity_ratio": 0.5,
     "cap_conn": 90,
     "cap_layer": 3,
-    "desired_conn": 50
+    "desired_conn": 50,
+    "stage_one_gen": 1000
 }

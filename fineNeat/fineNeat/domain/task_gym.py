@@ -2,8 +2,7 @@ import random
 import numpy as np
 import sys
 from .make_env import make_env
-from ..neat_src import *
-import slimevolleygym
+from ..neat_src import act, selectAct
 from fineNeat.neat_src.ann import NeatPolicy
 from slimevolleygym import multiagent_rollout as rollout
 
@@ -140,6 +139,8 @@ class GymTask():
           self.env.render()
       if done:
         break
+      
+    totalReward = totalReward * (1 - tStep / self.maxEpisodeLength) # discount reward with time
     return totalReward
   
   def match_score(self, ind_left, ind_right): 
@@ -154,7 +155,7 @@ class GymTask():
     score_left = add_dual_agent_time_score(score_left, t, max_steps = self.env.t_limit)
     score_right = add_dual_agent_time_score(score_right, t, max_steps = self.env.t_limit)
     return score_left, score_right
-  
+
 
 def add_dual_agent_time_score(score, t, max_steps): 
   """ 

@@ -25,15 +25,17 @@ print('\t*** Running with hyperparameters: ', hyp_adjust, '\t***')
 neat = Neat(hyp)
 
 # Parallal Reward Assignment (Speed-Up 3x)
-def evaluate_individual(args):
-    ind, pop, n_opponents = args
-    return task.getTournamentScore(ind, random.sample(pop, n_opponents))
 
-def parallelEval(pop, task, n_opponents=6, n_workers=None):
+def evaluate_individual(args):
+    task, ind = args
+    return task.getFitness(ind)
+
+
+def parallelEval(pop, task, n_workers=None):
     if n_workers is None:
         n_workers = os.cpu_count()
     
-    eval_args = [(ind, pop, n_opponents) for ind in pop]
+    eval_args = [(task, ind) for ind in pop]
     
     with ProcessPoolExecutor(max_workers=n_workers) as executor:
         futures = list(
@@ -66,7 +68,7 @@ def master():
 
   for gen in tqdm(range(hyp['maxGen']), total=hyp['maxGen'], desc="NEAT Generation Evolution"):        
     pop = neat.ask()            # Get newly evolved individuals from NEAT  
-    reward = parallelEval(pop, task, n_opponents=6, n_workers=None)  # Send pop to be evaluated by workers
+    reward = parallelEval(pop, task, n_workers=None)  # Send pop to be evaluated by workers
     neat.tell(reward)           # Send fitness to NEAT    
 
     data.gatherData(neat.pop, neat.species)

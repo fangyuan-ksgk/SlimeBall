@@ -185,7 +185,8 @@ class Ind():
     else:
       child = self 
 
-    child, innov = child.mutate(p,innov,gen)
+    mutate_top_change = gen < p['stage_one_gen']
+    child, innov = child.mutate(p,innov,gen, mutate_top_change)
     return child, innov
 
 # -- Canonical NEAT recombination operators ------------------------------ -- #
@@ -244,7 +245,7 @@ class Ind():
     assert child.express(), ":: Naive parameter mutation gives errored individual"
     return child
     
-  def mutate(self,p,innov=None,gen=None, mute_top_change=True):
+  def mutate(self,p,innov=None,gen=None, mutate_top_change=True):
     """
     Randomly alter topology and weights of individual
     - include topology cap :: cap layer & cap active connection 
@@ -260,7 +261,8 @@ class Ind():
     
     # - Change connection status (Turn On/Off)
     p['sparsity_ratio'] = min(1, p['desired_conn'] / connG[4,:].sum())
-    connG, nodeG, innov = self.mutSparsity(p, innov)
+    if mutate_top_change:
+      connG, nodeG, innov = self.mutSparsity(p, innov)
          
     # - Weight mutation
     # [Canonical NEAT: 10% of weights are fully random...but seriously?]
@@ -280,10 +282,10 @@ class Ind():
     prob_mutConn = p['prob_addConn'] * discount_prob
     prob_mutNode = p['prob_addNode'] * discount_prob
     
-    if (np.random.rand() < prob_mutNode) and np.any(connG[4,:]==1):
+    if (np.random.rand() < prob_mutNode * float(mutate_top_change)) and np.any(connG[4,:]==1):
       connG, nodeG, innov = self.mutAddNode(connG, nodeG, innov, gen, p)
     
-    if (np.random.rand() < prob_mutConn):
+    if (np.random.rand() < prob_mutConn * float(mutate_top_change)):
       connG, nodeG, innov = self.mutAddConn(connG, nodeG, innov, gen, p) 
     
     child = Ind(connG, nodeG)
