@@ -93,28 +93,18 @@ def eval(env, policy_left, policy_right, base_policy, villain_policy, selfplay=F
     return score_right, score_left, (time_right + time_left) / 2
   
   
-def update_winning_streak(winning_streak, left_idx, right_idx, score_right, score_left, selfplay=False,mut_discount=0.8):
+def update_winning_streak(winning_streak, left_idx, right_idx, score_right, score_left, mut_discount=0.8):
     """ 
     Simple approach: Absolute score to represent quality
     """
-    if selfplay:  # accumulative winning streak for selfplay
-        if score_right > score_left: 
-            winning_streak[left_idx] = winning_streak[right_idx] * mut_discount
-            winning_streak[right_idx] += score_right
-        elif score_right < score_left: 
-            winning_streak[right_idx] = winning_streak[left_idx] * mut_discount
-            winning_streak[left_idx] += score_left
-        else: 
-            winning_streak[left_idx] = score_left * mut_discount
-    else:
-        if score_right > score_left: 
-            winning_streak[left_idx] = winning_streak[right_idx] * mut_discount
-            winning_streak[right_idx] = score_right
-        elif score_right < score_left: 
-            winning_streak[right_idx] = winning_streak[left_idx] * mut_discount
-            winning_streak[left_idx] = score_left
-        else: 
-            winning_streak[left_idx] = score_left * mut_discount
+    if score_right > score_left: 
+      winning_streak[left_idx] = winning_streak[right_idx] * mut_discount
+      winning_streak[right_idx] = score_right
+    elif score_right < score_left: 
+      winning_streak[right_idx] = winning_streak[left_idx] * mut_discount
+      winning_streak[left_idx] = score_left
+    else: 
+      winning_streak[left_idx] = score_left * mut_discount
 
     return winning_streak
   
@@ -165,8 +155,9 @@ def main(args):
         policy_right = NeatPolicy(population[right_idx], game)
         policy_left = NeatPolicy(population[left_idx], game)
         
-        # villain_policy, winning_streak = pick_villain(villain_policy, tournament, population, winning_streak, period=args.period)
-        score_right, score_left, length = eval(env, policy_left, policy_right, policy_base, villain_policy=policy_left, selfplay=args.selfplay)
+        villain_policy, winning_streak = pick_villain(villain_policy, tournament, population, winning_streak, period=args.period)
+        
+        score_right, score_left, length = eval(env, policy_left, policy_right, policy_base, villain_policy, selfplay=args.selfplay)
         history.append(int(length))
         
 
