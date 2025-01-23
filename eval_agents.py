@@ -114,7 +114,7 @@ def get_neat_file(file_path: str) -> str:
 
 if __name__=="__main__":
 
-  APPROVED_MODELS = ["baseline", "ppo", "ga", "jacobian", "cma", "random", "neat", "sneat"]
+  APPROVED_MODELS = ["baseline", "ppo", "ga", "jacobian", "cma", "random", "neat", "sneat", "sneat_non_sp"]
 
   def checkchoice(choice):
     choice = choice.lower()
@@ -132,7 +132,8 @@ if __name__=="__main__":
     "ga": "training_scripts/ga_selfplay/ga_00080000.json",
     "random": None,
     "neat": "runs/neat/volley1200_best.json",
-    "sneat": "runs/sneat/sneat_00500000.json",
+    "sneat": "runs/sneat_tune_sp/sneat_00480000.json",
+    "sneat_non_sp": "zoo/sneat_check/sneat_non_sp_00440000.json",
   }
 
   MODEL = {
@@ -144,6 +145,7 @@ if __name__=="__main__":
     "neat": NEATPolicy,
     "jacobian": makeSlimePolicyLite,
     "sneat": NEATPolicy,
+    "sneat_non_sp": NEATPolicy,
   }
 
   parser = argparse.ArgumentParser(description='Evaluate pre-trained agents against each other.')
