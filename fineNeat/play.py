@@ -92,7 +92,10 @@ def get_neat_file(file_path: str) -> str:
     files = glob.glob(file_path + "/*.json")  
     if len(files) == 0:
       return None
-    files.sort(key=lambda x: int(x.split("_")[-1].split(".")[0]))
+    if "volley" in file_path: 
+      files.sort(key=lambda x: int(x.split("_")[0].split("volley")[-1]))
+    else:
+      files.sort(key=lambda x: int(x.split("_")[-1].split(".")[0]))
     return files[-1]
 
 
