@@ -82,14 +82,25 @@ def getMat(nodeG, connG):
     
     order2seq = getMatOrder(nIns, nOuts, wMat)
     
+    # re-order wMat according to order2seq, (i,j) element should be originally at (order2seq[i], order2seq[j])
+    
+    
     if order2seq is False:
         return False, False, False, False
-    
+      
+    wMat_reordered = np.zeros_like(wMat)
+    for i in range(len(order2seq)):
+        for j in range(len(order2seq)):
+            wMat_reordered[i,j] = wMat[order2seq[i], order2seq[j]]
+    wMat = wMat_reordered
+
     seq2order = {order2seq[seq_idx]: seq_idx for seq_idx in order2seq}
     node2seq = {node_id: seq_idx for node_id, seq_idx in zip(seq2node, np.arange(len(seq2node)))}
     seq2node = {node2seq[node_id]: node_id for node_id in node2seq}
     node2order = {node_idx: seq2order[node2seq[node_idx]] for node_idx in node2seq}
-    return wMat, node2order, node2seq, seq2node
+    
+    # re-ordered wMat has sequence ordered topologically
+    return wMat, node2order, node2order, {i:i for i in range(len(order2seq))}
 
 
 def getLayer(wMat, node2seq, node2order, seq2node):
@@ -110,8 +121,6 @@ def getLayer(wMat, node2seq, node2order, seq2node):
             node2layer[node_idx] = np.max(input_node_layers) + 1
     return node2layer 
   
-  
-
 
 def getNodeInfo(nodeG, connG): 
     wMat, node2order, node2seq, seq2node = getMat(nodeG, connG)
