@@ -186,6 +186,7 @@ class Ind():
       child = self 
 
     mutate_top_change = gen < p['stage_one_gen']
+    print(" :: Mutating network topology") if mutate_top_change else print(" :: Stop mutating network topology")
     child, innov = child.mutate(p,innov,gen, mutate_top_change)
     return child, innov
 

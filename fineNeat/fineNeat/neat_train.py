@@ -18,6 +18,7 @@ from domain import *   # Task environments
 
 
 # -- Run NEAT ------------------------------------------------------------ -- #
+# -- Ensure two-stage split
 def master(): 
   """Main NEAT optimization script
   """
@@ -25,10 +26,12 @@ def master():
   data = DataGatherer(fileName, hyp)
   neat = Neat(hyp)
 
-  for gen in range(hyp['maxGen']):        
+  for gen in range(hyp['maxGen']):   
+    print("=== Generation ", neat.gen, " ===")     
     pop = neat.ask()            # Get newly evolved individuals from NEAT  
     reward = batchMpiEval(pop)  # Send pop to be evaluated by workers
-    neat.tell(reward)           # Send fitness to NEAT    
+    neat.tell(reward)           # Send fitness to NEAT  
+    neat.gen += 1               # Increment generation number  
 
     data = gatherData(data,neat,gen,hyp)
     print(gen, '\t - \t', data.display())

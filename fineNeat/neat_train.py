@@ -86,6 +86,8 @@ def master():
         pop = neat.ask()            # Get newly evolved individuals from NEAT  
         reward = parallelEval(pop, n_workers=None)  # Send pop to be evaluated by workers
         neat.tell(reward)           # Send fitness to NEAT    
+        neat.gen += 1               # update generation count
+        print("  :: Generation ", neat.gen)
 
         data.gatherData(neat.pop, neat.species)
         print(gen, '\t - \t', data.display())

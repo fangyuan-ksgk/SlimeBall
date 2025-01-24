@@ -11,5 +11,5 @@
     "cap_conn": 90,
     "cap_layer": 3,
     "desired_conn": 50,
-    "stage_one_gen": 1000
+    "stage_one_gen": 500
 }
