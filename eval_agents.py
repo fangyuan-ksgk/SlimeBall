@@ -131,7 +131,7 @@ if __name__=="__main__":
     "jacobian": "training_scripts/ga_jacobian_estimate2/jacobian_00241000.json",
     "ga": "training_scripts/ga_selfplay/ga_00080000.json",
     "random": None,
-    "neat": "runs/neat/volley1200_best.json",
+    "neat": "runs/neat_non_sp_big/volley9990_best.json",
     "sneat": "runs/sneat_tune_sp/sneat_00079000.json",
     "sneat_non_sp": "zoo/sneat_check/sneat_non_sp_00440000.json",
   }
